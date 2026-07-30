@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Rim of the Bike Wheel -->
+    <path
+        android:pathData="M54,54m-32,0a32,32 0 1,1 64,0a32,32 0 1,1 -64,0"
+        android:strokeWidth="3"
+        android:strokeColor="#000000"
+        android:fillColor="#00000000" />
+
+    <!-- Spokes / Ticks -->
+    <path
+        android:pathData="M54,22 L54,30 M54,78 L54,86 M22,54 L30,54 M78,54 L86,54 M31.4,31.4 L37,37 M76.6,76.6 L71,71 M31.4,76.6 L37,71 M76.6,31.4 L71,37"
+        android:strokeWidth="2"
+        android:strokeColor="#000000"
+        android:strokeLineCap="round" />
+
+    <!-- Speedometer Needle -->
+    <path
+        android:pathData="M54,54 L72,36"
+        android:strokeWidth="4"
+        android:strokeColor="#000000"
+        android:strokeLineCap="round" />
+
+    <!-- Center Hub -->
+    <path
+        android:pathData="M54,54m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0"
+        android:fillColor="#000000" />
+</vector>
