@@ -88,7 +88,7 @@ fun DashboardScreen(
             }
             item {
                 StatCard(
-                    title = "Acceleration",
+                    title = "Acceleration (LPF)",
                     value = "%.2f".format(cruisingData.accelerationMagnitude),
                     unit = "m/s²",
                     icon = Icons.AutoMirrored.Rounded.TrendingUp,

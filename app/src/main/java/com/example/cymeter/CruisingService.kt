@@ -29,6 +29,8 @@ class CruisingService : Service(), SensorEventListener {
     companion object {
         private const val STOP_THRESHOLD = 0.5f
         private const val STOP_DURATION_MS = 2000L
+        private const val LPF_ALPHA = 0.1f
+        private const val SPEED_THRESHOLD_MPS = 5.0f / 3.6f // 5.0 km/h
     }
 
     private val binder = LocalBinder()
@@ -47,6 +49,10 @@ class CruisingService : Service(), SensorEventListener {
     private var speedSamplesCount: Long = 0
     private var lastMovingTimeUpdate: Long = 0L
     private var totalMovingTimeMillis: Long = 0L
+
+    private var smoothedX = 0f
+    private var smoothedY = 0f
+    private var smoothedZ = 0f
 
     data class CruisingState(
         val isMoving: Boolean = false,
@@ -73,8 +79,10 @@ class CruisingService : Service(), SensorEventListener {
                     val currentTime = System.currentTimeMillis()
 
                     if (isMovingInternal) {
-                        totalSpeedSum += speed
-                        speedSamplesCount++
+                        if (speed > SPEED_THRESHOLD_MPS) {
+                            totalSpeedSum += speed
+                            speedSamplesCount++
+                        }
 
                         if (lastMovingTimeUpdate > 0) {
                             totalMovingTimeMillis += (currentTime - lastMovingTimeUpdate)
@@ -175,7 +183,13 @@ class CruisingService : Service(), SensorEventListener {
             val x = event.values[0]
             val y = event.values[1]
             val z = event.values[2]
-            val magnitude = sqrt(x * x + y * y + z * z)
+
+            // Apply Low-Pass Filter
+            smoothedX = LPF_ALPHA * smoothedX + (1 - LPF_ALPHA) * x
+            smoothedY = LPF_ALPHA * smoothedY + (1 - LPF_ALPHA) * y
+            smoothedZ = LPF_ALPHA * smoothedZ + (1 - LPF_ALPHA) * z
+
+            val magnitude = sqrt(smoothedX * smoothedX + smoothedY * smoothedY + smoothedZ * smoothedZ)
             val currentTime = System.currentTimeMillis()
 
             if (magnitude > STOP_THRESHOLD) {
