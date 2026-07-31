@@ -1,6 +1,5 @@
 package com.example.cymeter
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,6 +29,25 @@ fun DashboardScreen(
 ) {
     val cruisingData by viewModel.uiState.collectAsStateWithLifecycle()
 
+    DashboardContent(
+        cruisingData,
+        isServiceRunning,
+        onStartService,
+        onStopService,
+        onResetData,
+        modifier
+    )
+}
+
+@Composable
+fun DashboardContent(
+    cruisingData: CruisingService.CruisingState,
+    isServiceRunning: Boolean,
+    onStartService: () -> Unit,
+    onStopService: () -> Unit,
+    onResetData: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -204,13 +222,12 @@ fun formatMovingTime(millis: Long): String {
     return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun DashboardPreview() {
     CyMeterTheme {
-        DashboardScreen(
-            viewModel = CruisingViewModel(),
+        DashboardContent(
+            cruisingData = CruisingService.CruisingState(),
             isServiceRunning = false,
             onStartService = {},
             onStopService = {},
@@ -219,13 +236,12 @@ fun DashboardPreview() {
     }
 }
 
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(showBackground = true, device = "spec:width=1280dp,height=800dp,dpi=240")
 @Composable
 fun DashboardTabletPreview() {
     CyMeterTheme {
-        DashboardScreen(
-            viewModel = CruisingViewModel(),
+        DashboardContent(
+            cruisingData = CruisingService.CruisingState(),
             isServiceRunning = true,
             onStartService = {},
             onStopService = {},
