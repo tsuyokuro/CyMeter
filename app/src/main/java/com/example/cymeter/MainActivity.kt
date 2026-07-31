@@ -27,7 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.example.cymeter.ui.theme.CyMeterTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -35,7 +39,7 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object DashboardRoute
+data object DashboardRoute : NavKey
 
 class MainActivity : ComponentActivity() {
 
@@ -94,15 +98,27 @@ class MainActivity : ComponentActivity() {
                         NavDisplay(
                             backStack = backStack,
                             onBack = { backStack.removeLastOrNull() },
+                            entryDecorators = listOf(
+                                rememberSaveableStateHolderNavEntryDecorator(),
+                                rememberViewModelStoreNavEntryDecorator()
+                            ),
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {
+                                        val viewModel: CruisingViewModel = viewModel()
+
+                                        LaunchedEffect(cruisingService) {
+                                            cruisingService?.cruisingData?.collect { data ->
+                                                viewModel.updateState(data)
+                                            }
+                                        }
+
                                         DashboardScreen(
-                                            cruisingService = cruisingService,
+                                            viewModel = viewModel,
                                             isServiceRunning = isBound,
                                             onStartService = { startCruisingService() },
                                             onStopService = { stopCruisingService() },
-                                            onResetData = { cruisingService?.resetData() }
+                                            onResetData = { viewModel.resetData(cruisingService) }
                                         )
                                     }
                                     else -> error("Unknown route $key")
