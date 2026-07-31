@@ -31,6 +31,8 @@ class CruisingService : Service(), SensorEventListener {
         private const val STOP_DURATION_MS = 2000L
         private const val LPF_ALPHA = 0.1f
         private const val SPEED_THRESHOLD_MPS = 5.0f / 3.6f // 5.0 km/h
+
+        private const val DISTANCE_TIME_INTERVAL_MS = 10000L
     }
 
     private val binder = LocalBinder()
@@ -50,6 +52,10 @@ class CruisingService : Service(), SensorEventListener {
     private var lastMovingTimeUpdate: Long = 0L
     private var totalMovingTimeMillis: Long = 0L
 
+    private var lastDistanceLocation: android.location.Location? = null
+    private var lastDistanceUpdateTime: Long = 0L
+    private var totalDistanceMeters: Float = 0.0f
+
     private var smoothedX = 0f
     private var smoothedY = 0f
     private var smoothedZ = 0f
@@ -59,7 +65,8 @@ class CruisingService : Service(), SensorEventListener {
         val currentSpeed: Float = 0f,
         val avgCruisingSpeed: Float = 0f,
         val movingTimeMillis: Long = 0L,
-        val accelerationMagnitude: Float = 0f
+        val accelerationMagnitude: Float = 0f,
+        val distanceKm: Float = 0.0f
     )
 
     inner class LocalBinder : Binder() {
@@ -94,10 +101,19 @@ class CruisingService : Service(), SensorEventListener {
 
                     val avgSpeed = if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
 
+                    if (currentTime - lastDistanceUpdateTime >= DISTANCE_TIME_INTERVAL_MS) {
+                        lastDistanceLocation?.let { lastLoc ->
+                            totalDistanceMeters += location.distanceTo(lastLoc)
+                        }
+                        lastDistanceLocation = location
+                        lastDistanceUpdateTime = currentTime
+                    }
+
                     _cruisingData.value = _cruisingData.value.copy(
                         currentSpeed = speed,
                         avgCruisingSpeed = avgSpeed,
-                        movingTimeMillis = totalMovingTimeMillis
+                        movingTimeMillis = totalMovingTimeMillis,
+                        distanceKm = totalDistanceMeters / 1000f
                     )
                 }
             }
@@ -164,12 +180,16 @@ class CruisingService : Service(), SensorEventListener {
         speedSamplesCount = 0
         totalMovingTimeMillis = 0
         lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
+        totalDistanceMeters = 0.0f
+        lastDistanceLocation = null
+        lastDistanceUpdateTime = 0L
         _cruisingData.value = CruisingState(
             isMoving = isMovingInternal,
             currentSpeed = _cruisingData.value.currentSpeed,
             avgCruisingSpeed = 0f,
             movingTimeMillis = 0L,
-            accelerationMagnitude = _cruisingData.value.accelerationMagnitude
+            accelerationMagnitude = _cruisingData.value.accelerationMagnitude,
+            distanceKm = 0.0f
         )
     }
 

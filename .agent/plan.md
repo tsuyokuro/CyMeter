@@ -34,7 +34,7 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 > This MVP focuses on real-time data processing and high-accuracy logging without local persistence, prioritizing a lightweight and responsive user experience.
 
 ## Implementation Steps
-**Total Duration:** 16m 31s
+**Total Duration:** 23m 47s
 
 ### Task_1_Service_and_Sensors: Implement the Foreground Service to handle GPS and Linear Acceleration sensor data collection.
 - **Status:** COMPLETED
@@ -73,4 +73,24 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
   - all existing tests pass
   - critic_agent verifies application stability and alignment with GPS/Sensor logging requirements
 - **Duration:** 3m 13s
+
+### Task_5_Distance_Tracking_Logic: Implement distance accumulation logic in CruisingService. Every 10 seconds, calculate the distance from the previous location and update the total distance.
+- **Status:** COMPLETED
+- **Updates:** Implemented distance accumulation logic in CruisingService. Updated CruisingState and reset logic. The coder_agent also updated the UI, so I will verify everything in the next task.
+- **Acceptance Criteria:**
+  - Distance tracking logic implemented in CruisingService
+  - Total distance is updated every 10 seconds
+  - Distance data is exposed to the ViewModel
+- **Duration:** 3m 53s
+
+### Task_6_UI_and_Verification: Update the Compose Dashboard to display the total distance in kilometers. Perform final verification to ensure stability and accuracy.
+- **Status:** COMPLETED
+- **Updates:** Verified distance tracking logic and UI. Updated the label to 'Total Distance' as per critic suggestion. App is stable and adaptive. Final walkthrough updated.
+- **Acceptance Criteria:**
+  - Dashboard UI shows total distance in KM
+  - UI updates in real-time
+  - build pass
+  - app does not crash
+  - critic_agent verifies the distance tracking feature and app stability
+- **Duration:** 3m 23s
 

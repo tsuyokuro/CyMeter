@@ -7,8 +7,9 @@ I have refined the CyMeter UI into a professional-looking Dashboard with a card-
 ### UI Refinement
 - **Dashboard Layout**: Implemented `DashboardScreen.kt` using Material 3 `ElevatedCard` components.
     - Statistics are displayed in an adaptive grid that looks great on both phones and tablets.
-    - Included cards for Current Speed, Average Speed, Moving Time, Status, and Smoothed Acceleration.
+    - Included cards for Current Speed, Average Speed, Moving Time, Status, Smoothed Acceleration, and Total Distance.
     - Used vibrant, context-aware colors (e.g., Green for Moving, Amber for Stopped).
+- **Clarity Improvements**: Updated the "Distance" card title to "Total Distance" to better reflect that it represents the cumulative distance traveled during the session.
 - **Adaptive Navigation**: Refactored the app to use `NavigationSuiteScaffold`, which automatically switches between a Bottom Bar (on phones) and a Navigation Rail (on tablets).
 - **Navigation 3**: Migrated the app from a single-screen layout to a Navigation 3 architecture using `NavDisplay` and serializable routes.
 - **Improved Controls**: Added a "Reset" button to clear session statistics and styled the Start/Stop buttons for better prominence.

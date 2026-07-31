@@ -112,6 +112,15 @@ fun DashboardContent(
                     color = MaterialTheme.colorScheme.outline
                 )
             }
+            item {
+                StatCard(
+                    title = "Total Distance",
+                    value = "%.2f".format(cruisingData.distanceKm),
+                    unit = "km",
+                    icon = Icons.Rounded.Route,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
