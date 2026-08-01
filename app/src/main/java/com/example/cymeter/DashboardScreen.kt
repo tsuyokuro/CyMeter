@@ -27,7 +27,8 @@ fun DashboardScreen(
     onResetData: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cruisingData by viewModel.uiState.collectAsStateWithLifecycle()
+    val cruisingData : CruisingService.CruisingState
+        by viewModel.uiState.collectAsStateWithLifecycle()
 
     DashboardContent(
         cruisingData,

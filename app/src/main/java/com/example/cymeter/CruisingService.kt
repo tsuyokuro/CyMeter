@@ -29,7 +29,7 @@ class CruisingService : Service(), SensorEventListener {
     companion object {
         private const val STOP_THRESHOLD = 0.5f
         private const val STOP_DURATION_MS = 2000L
-        private const val LPF_ALPHA = 0.1f
+        private const val LPF_ALPHA = 0.7f
         private const val SPEED_THRESHOLD_MPS = 5.0f / 3.6f // 5.0 km/h
 
         private const val DISTANCE_TIME_INTERVAL_MS = 10000L
@@ -42,7 +42,7 @@ class CruisingService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var linearAccelerationSensor: Sensor? = null
 
-    private val _cruisingData = MutableStateFlow(CruisingState())
+    private val _cruisingData = MutableStateFlow<CruisingState>(CruisingState())
     val cruisingData: StateFlow<CruisingState> = _cruisingData.asStateFlow()
 
     private var lastBelowThresholdTime: Long = 0L
