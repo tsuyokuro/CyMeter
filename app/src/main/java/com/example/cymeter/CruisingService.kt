@@ -9,6 +9,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.Location
 import android.os.Binder
 import android.os.IBinder
 import android.os.Looper
@@ -24,12 +25,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.sqrt
 
-class CruisingService : Service(), SensorEventListener {
+class CruisingService : Service() {
 
     companion object {
         private const val STOP_THRESHOLD = 0.5f
         private const val STOP_DURATION_MS = 2000L
-        private const val LPF_ALPHA = 0.7f
+        private const val ACCEL_LPF_ALPHA = 0.7f
+
+        private const val SPEED_LPF_ALPHA = 0.5f
+
         private const val SPEED_THRESHOLD_MPS = 5.0f / 3.6f // 5.0 km/h
 
         private const val DISTANCE_TIME_INTERVAL_MS = 10000L
@@ -42,6 +46,9 @@ class CruisingService : Service(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var linearAccelerationSensor: Sensor? = null
 
+    private lateinit var linearAccelerationListener: SensorEventListener
+
+
     private val _cruisingData = MutableStateFlow<CruisingState>(CruisingState())
     val cruisingData: StateFlow<CruisingState> = _cruisingData.asStateFlow()
 
@@ -49,16 +56,18 @@ class CruisingService : Service(), SensorEventListener {
     private var isMovingInternal: Boolean = false
     private var totalSpeedSum: Double = 0.0
     private var speedSamplesCount: Long = 0
+
+    private var lpfSpeed = 0.0f
+
     private var lastMovingTimeUpdate: Long = 0L
     private var totalMovingTimeMillis: Long = 0L
 
-    private var lastDistanceLocation: android.location.Location? = null
-    private var lastDistanceUpdateTime: Long = 0L
+    private var lastDistanceLocation: Location? = null
     private var totalDistanceMeters: Float = 0.0f
 
-    private var smoothedX = 0f
-    private var smoothedY = 0f
-    private var smoothedZ = 0f
+    private var lpfAccelX = 0.0f
+    private var lpfAccelY = 0.0f
+    private var lpfAccelZ = 0.0f
 
     data class CruisingState(
         val isMoving: Boolean = false,
@@ -82,40 +91,15 @@ class CruisingService : Service(), SensorEventListener {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
-                    val speed = location.speed
-                    val currentTime = System.currentTimeMillis()
-
-                    if (isMovingInternal) {
-                        if (speed > SPEED_THRESHOLD_MPS) {
-                            totalSpeedSum += speed
-                            speedSamplesCount++
-                        }
-
-                        if (lastMovingTimeUpdate > 0) {
-                            totalMovingTimeMillis += (currentTime - lastMovingTimeUpdate)
-                        }
-                        lastMovingTimeUpdate = currentTime
-                    } else {
-                        lastMovingTimeUpdate = 0L
-                    }
-
-                    val avgSpeed = if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
-
-                    if (currentTime - lastDistanceUpdateTime >= DISTANCE_TIME_INTERVAL_MS) {
-                        lastDistanceLocation?.let { lastLoc ->
-                            totalDistanceMeters += location.distanceTo(lastLoc)
-                        }
-                        lastDistanceLocation = location
-                        lastDistanceUpdateTime = currentTime
-                    }
-
-                    _cruisingData.value = _cruisingData.value.copy(
-                        currentSpeed = speed,
-                        avgCruisingSpeed = avgSpeed,
-                        movingTimeMillis = totalMovingTimeMillis,
-                        distanceKm = totalDistanceMeters / 1000f
-                    )
+                    trackLocation(location)
                 }
+            }
+        }
+
+        linearAccelerationListener = object : SensorEventListener {
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            override fun onSensorChanged(event: SensorEvent?) {
+                onAccelSensorChanged(event)
             }
         }
     }
@@ -166,13 +150,16 @@ class CruisingService : Service(), SensorEventListener {
         }
 
         linearAccelerationSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+            sensorManager.registerListener(
+                linearAccelerationListener,
+                it,
+                SensorManager.SENSOR_DELAY_UI)
         }
     }
 
     private fun stopTracking() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
-        sensorManager.unregisterListener(this)
+        sensorManager.unregisterListener(linearAccelerationListener)
     }
 
     fun resetData() {
@@ -182,7 +169,6 @@ class CruisingService : Service(), SensorEventListener {
         lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
         totalDistanceMeters = 0.0f
         lastDistanceLocation = null
-        lastDistanceUpdateTime = 0L
         _cruisingData.value = CruisingState(
             isMoving = isMovingInternal,
             currentSpeed = _cruisingData.value.currentSpeed,
@@ -198,18 +184,18 @@ class CruisingService : Service(), SensorEventListener {
         super.onDestroy()
     }
 
-    override fun onSensorChanged(event: SensorEvent?) {
+    private fun onAccelSensorChanged(event: SensorEvent?) {
         if (event?.sensor?.type == Sensor.TYPE_LINEAR_ACCELERATION) {
             val x = event.values[0]
             val y = event.values[1]
             val z = event.values[2]
 
             // Apply Low-Pass Filter
-            smoothedX = LPF_ALPHA * smoothedX + (1 - LPF_ALPHA) * x
-            smoothedY = LPF_ALPHA * smoothedY + (1 - LPF_ALPHA) * y
-            smoothedZ = LPF_ALPHA * smoothedZ + (1 - LPF_ALPHA) * z
+            lpfAccelX = ACCEL_LPF_ALPHA * lpfAccelX + (1 - ACCEL_LPF_ALPHA) * x
+            lpfAccelY = ACCEL_LPF_ALPHA * lpfAccelY + (1 - ACCEL_LPF_ALPHA) * y
+            lpfAccelZ = ACCEL_LPF_ALPHA * lpfAccelZ + (1 - ACCEL_LPF_ALPHA) * z
 
-            val magnitude = sqrt(smoothedX * smoothedX + smoothedY * smoothedY + smoothedZ * smoothedZ)
+            val magnitude = sqrt(lpfAccelX * lpfAccelX + lpfAccelY * lpfAccelY + lpfAccelZ * lpfAccelZ)
             val currentTime = System.currentTimeMillis()
 
             if (magnitude > STOP_THRESHOLD) {
@@ -230,5 +216,53 @@ class CruisingService : Service(), SensorEventListener {
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    private fun trackLocation(location : Location) {
+
+        lpfSpeed = SPEED_LPF_ALPHA * lpfSpeed + (1.0f - SPEED_LPF_ALPHA) * location.speed
+
+        val speed = lpfSpeed
+        val currentTime = System.currentTimeMillis()
+
+        if (isMovingInternal) {
+            if (speed > SPEED_THRESHOLD_MPS) {
+                totalSpeedSum += speed
+                speedSamplesCount++
+            }
+
+            if (lastMovingTimeUpdate > 0) {
+                totalMovingTimeMillis += (currentTime - lastMovingTimeUpdate)
+            }
+            lastMovingTimeUpdate = currentTime
+        } else {
+            lastMovingTimeUpdate = 0L
+        }
+
+        val avgSpeed = if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
+
+        totalDistanceMeters += calcDistance(lastDistanceLocation, location)
+        lastDistanceLocation = location
+
+        _cruisingData.value = _cruisingData.value.copy(
+            currentSpeed = speed,
+            avgCruisingSpeed = avgSpeed,
+            movingTimeMillis = totalMovingTimeMillis,
+            distanceKm = totalDistanceMeters / 1000f
+        )
+    }
+
+    private fun calcDistance(lastLoc: Location?, newLocation: Location?): Float {
+
+        if (lastLoc == null || newLocation == null) {
+            return 0.0f
+        }
+
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            lastLoc.latitude, lastLoc.longitude,
+            newLocation.latitude, newLocation.longitude,
+            results
+        )
+
+        return results[0]
+    }
 }
