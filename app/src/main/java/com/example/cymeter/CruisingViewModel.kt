@@ -13,11 +13,32 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class CruisingViewModel(private val locationDao: LocationDao) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CruisingService.CruisingState())
     val uiState: StateFlow<CruisingService.CruisingState> = _uiState.asStateFlow()
+
+    init {
+        loadLastSession()
+    }
+
+    private fun loadLastSession() {
+        viewModelScope.launch {
+            val lastPoint = locationDao.getLatestPoint()
+            if (lastPoint != null && _uiState.value.sessionId == 0L) {
+                _uiState.value = CruisingService.CruisingState(
+                    sessionId = lastPoint.sessionId,
+                    avgCruisingSpeed = lastPoint.avgSpeed,
+                    distanceKm = lastPoint.totalDistanceMeters / 1000f,
+                    movingTimeMillis = lastPoint.movingTimeMillis,
+                    currentSpeed = 0f,
+                    isMoving = false
+                )
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val pathPoints: StateFlow<List<LocationPoint>> = _uiState

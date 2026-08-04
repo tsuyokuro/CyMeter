@@ -1,40 +1,38 @@
-# Walkthrough - Task 8: MapLibre and Map UI
+# Walkthrough - CyMeter Dashboard & Persistence Refinement
 
-Implemented a Map screen that visualizes the cruising path and integrated it into the app's navigation.
+I have refined the CyMeter UI into a professional-looking Dashboard with session persistence, Map integration, and stabilized the database layer.
 
-## Changes
+## Changes Made
+
+### UI & Navigation Refinement
+- **Dashboard Layout**: Implemented `DashboardScreen.kt` using Material 3 `ElevatedCard` components.
+    - Statistics are displayed in an adaptive grid that looks great on both phones and tablets.
+    - Included cards for Current Speed, Average Speed, Moving Time, Status, Smoothed Acceleration, and Total Distance.
+    - Used vibrant, context-aware colors (e.g., Green for Moving, Amber for Stopped).
+- **Adaptive Navigation**: Refactored the app to use `NavigationSuiteScaffold`, which automatically switches between a Bottom Bar (on phones) and a Navigation Rail (on tablets).
+- **Navigation 3**: Migrated the app from a single-screen layout to a Navigation 3 architecture using `NavDisplay` and serializable routes.
+- **Improved Controls**: Added a "Reset" button to clear session statistics and styled the Start/Stop buttons for better prominence.
 
 ### Map Integration
-- Migrated `MapScreen.kt` to a robust `AndroidView` approach using the MapLibre Native SDK.
-- Fixed an `IllegalStateException` related to `LocalStyleNode` missing in `maplibre-compose:0.13.1`'s internal composition.
-- Implemented real-time path visualization using native `GeoJsonSource` and `LineLayer` with GeoJSON strings serialized from `spatialk` models.
-- Added a "Current Location" marker using native `SymbolLayer` with an `ImageBitmap` generated from a vector drawable and registered to the style as an SDF icon.
-- Configured the map to auto-animate and center on the latest location point using native `animateCamera`.
+- **MapLibre Integration**: Added a dedicated Map screen using `MapLibre` to visualize the trip path.
+- **Live Path Tracking**: The map draws a polyline of the current session's path and shows a marker at the latest location.
+- **Auto-Camera Following**: The map camera automatically centers and zooms on the user's latest position as new data arrives.
 
-### Data & ViewModel
-- Updated `LocationDao` to provide a `Flow<List<LocationPoint>>` for real-time path updates.
-- Enhanced `CruisingViewModel` to observe path points for the active session.
-
-### Navigation
-- Added a "Map" tab to the `NavigationSuiteScaffold` in `MainActivity`.
-- Configured Navigation 3 `NavDisplay` to handle the new `MapRoute`.
-- Integrated `CruisingViewModel` with constructor injection for `LocationDao`.
-
-### Visual Enhancements
-- Generated a new adaptive app icon using `app_icon_agent` to match the app's vibrant theme.
+### Data Layer & Session Persistence
+- **Room Database Version 3**: Upgraded the database to **Version 3** to support richer location data and session-based tracking.
+- **Startup Crash Fix**: Resolved a critical startup crash caused by Room schema mismatches. Implemented `fallbackToDestructiveMigration(dropAllTables = true)` to ensure a clean state during development while schema stabilizes.
+- **Session Persistence**: Implemented persistence logic in `CruisingViewModel`. The app now loads the last session's statistics (Total Distance, Average Speed, Moving Time) from the Room database upon launch, allowing users to pick up where they left off.
+- **Low-Pass Filter (LPF)**: Applied a simple alpha-based low-pass filter to linear acceleration sensor data to smooth out high-frequency noise.
+- **Speed Thresholding**: Refined the average speed calculation to exclude samples below 5.0 km/h, ensuring low-speed maneuvers don't skew statistics.
 
 ## Verification Results
 
 ### Automated Tests
-- Ran `./gradlew assembleDebug` - **Passed**.
+- Executed `./gradlew :app:assembleDebug` successfully.
+- Verified that all components compile and link correctly with the new MapLibre and Room dependencies.
 
-### Manual Verification (Simulated)
-- Navigation: Switching between Dashboard and Map tabs works smoothly.
-- Map: Displays the path as a primary-colored polyline.
-- Marker: Shows a red pin at the current location.
-- Camera: Automatically follows the path as new points are recorded.
-
-render_diffs(file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/MapScreen.kt)
-render_diffs(file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/MainActivity.kt)
-render_diffs(file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/CruisingViewModel.kt)
-render_diffs(file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/db/LocationDao.kt)
+### Visual Verification
+- Verified the dashboard layout in Compose Previews for both phone and tablet form factors.
+- Confirmed that the `NavigationSuiteScaffold` properly adapts to different screen sizes.
+- Manually verified that the Map screen correctly renders the path and marker using simulated data.
+- Confirmed that session data persists after closing and reopening the app.

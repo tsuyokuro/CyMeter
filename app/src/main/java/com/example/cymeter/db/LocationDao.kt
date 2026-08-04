@@ -15,4 +15,10 @@ interface LocationDao {
 
     @Query("SELECT * FROM location_points WHERE sessionId = :sessionId ORDER BY timestamp ASC")
     fun getPointsFlowBySessionId(sessionId: Long): Flow<List<LocationPoint>>
+
+    @Query("SELECT * FROM location_points ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestPoint(): LocationPoint?
+
+    @Query("SELECT sessionId FROM location_points ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestSessionId(): Long?
 }

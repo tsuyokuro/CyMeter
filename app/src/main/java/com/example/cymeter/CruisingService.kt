@@ -150,12 +150,20 @@ class CruisingService : Service() {
         startForeground(1, notification)
     }
 
+    private var isTracking = false
+
     private fun startTracking() {
-        currentSessionId = System.currentTimeMillis()
+        if (isTracking) return
+        isTracking = true
+
+        if (currentSessionId == 0L) {
+            currentSessionId = System.currentTimeMillis()
+        }
+        
+        _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
+
         lastSaveTime = 0L
         lastSaveLocation = null
-
-        _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
             .setMinUpdateIntervalMillis(500)
@@ -180,6 +188,9 @@ class CruisingService : Service() {
     }
 
     private fun stopTracking() {
+        if (!isTracking) return
+        isTracking = false
+
         fusedLocationClient.removeLocationUpdates(locationCallback)
         sensorManager.unregisterListener(linearAccelerationListener)
 
@@ -187,7 +198,21 @@ class CruisingService : Service() {
             val currentTime = System.currentTimeMillis()
             val avgSpeed = _cruisingData.value.avgCruisingSpeed
 
-            writeLocationLog(currentTime, avgSpeed, totalDistanceMeters, lastDistanceLocation!!)
+            val point = LocationPoint(
+                sessionId = currentSessionId,
+                latitude = lastDistanceLocation!!.latitude,
+                longitude = lastDistanceLocation!!.longitude,
+                altitude = lastDistanceLocation!!.altitude,
+                speed = lpfSpeed,
+                avgSpeed = avgSpeed,
+                totalDistanceMeters = totalDistanceMeters,
+                movingTimeMillis = totalMovingTimeMillis,
+                timestamp = currentTime
+            )
+            // Use runBlocking to ensure the final point is saved before the service is fully destroyed
+            kotlinx.coroutines.runBlocking {
+                database.locationDao().insert(point)
+            }
         }
     }
 
@@ -198,8 +223,10 @@ class CruisingService : Service() {
         lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
         totalDistanceMeters = 0.0f
         lastDistanceLocation = null
-
         lastSaveLocation = null
+        lastSaveTime = 0L
+
+        currentSessionId = System.currentTimeMillis()
 
         _cruisingData.value = CruisingState(
             isMoving = isMovingInternal,
@@ -207,7 +234,8 @@ class CruisingService : Service() {
             avgCruisingSpeed = 0f,
             movingTimeMillis = 0L,
             accelerationMagnitude = _cruisingData.value.accelerationMagnitude,
-            distanceKm = 0.0f
+            distanceKm = 0.0f,
+            sessionId = currentSessionId
         )
     }
 
@@ -301,6 +329,7 @@ class CruisingService : Service() {
             speed = lpfSpeed,
             avgSpeed = avgSpeed,
             totalDistanceMeters = totalDistanceMeters,
+            movingTimeMillis = totalMovingTimeMillis,
             timestamp = timestamp
         )
         serviceScope.launch(Dispatchers.IO) {
