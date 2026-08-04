@@ -9,6 +9,9 @@ data class LocationPoint(
     val sessionId: Long,
     val latitude: Double,
     val longitude: Double,
+    val altitude: Double,
     val speed: Float,
+    val avgSpeed: Float,
+    val totalDistanceMeters: Float,
     val timestamp: Long
 )

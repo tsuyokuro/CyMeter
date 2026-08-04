@@ -55,9 +55,12 @@ class CruisingService : Service() {
 
     private lateinit var linearAccelerationListener: SensorEventListener
 
+
+    // DB
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentSessionId: Long = 0L
     private var lastSaveTime: Long = 0L
+    private var lastSaveLocation: Location? = null
     private val database by lazy { AppDatabase.getDatabase(this) }
 
 
@@ -150,6 +153,8 @@ class CruisingService : Service() {
     private fun startTracking() {
         currentSessionId = System.currentTimeMillis()
         lastSaveTime = 0L
+        lastSaveLocation = null
+
         _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
 
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
@@ -177,6 +182,13 @@ class CruisingService : Service() {
     private fun stopTracking() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         sensorManager.unregisterListener(linearAccelerationListener)
+
+        if (lastDistanceLocation != null) {
+            val currentTime = System.currentTimeMillis()
+            val avgSpeed = _cruisingData.value.avgCruisingSpeed
+
+            writeLocationLog(currentTime, avgSpeed, totalDistanceMeters, lastDistanceLocation!!)
+        }
     }
 
     fun resetData() {
@@ -186,6 +198,9 @@ class CruisingService : Service() {
         lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
         totalDistanceMeters = 0.0f
         lastDistanceLocation = null
+
+        lastSaveLocation = null
+
         _cruisingData.value = CruisingState(
             isMoving = isMovingInternal,
             currentSpeed = _cruisingData.value.currentSpeed,
@@ -241,20 +256,6 @@ class CruisingService : Service() {
         val speed = lpfSpeed
         val currentTime = System.currentTimeMillis()
 
-        if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
-            val point = LocationPoint(
-                sessionId = currentSessionId,
-                latitude = location.latitude,
-                longitude = location.longitude,
-                speed = location.speed,
-                timestamp = currentTime
-            )
-            serviceScope.launch(Dispatchers.IO) {
-                database.locationDao().insert(point)
-            }
-            lastSaveTime = currentTime
-        }
-
         if (isMovingInternal) {
             if (speed > SPEED_THRESHOLD_MPS) {
                 totalSpeedSum += speed
@@ -274,12 +275,37 @@ class CruisingService : Service() {
         totalDistanceMeters += calcDistance(lastDistanceLocation, location)
         lastDistanceLocation = location
 
+        if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
+            //val distance = calcDistance(lastLogLocation, location)
+            //if (distance > 1.0f) {
+                writeLocationLog(currentTime, avgSpeed, totalDistanceMeters, location)
+                lastSaveLocation = location
+                lastSaveTime = currentTime
+            //}
+        }
+
         _cruisingData.value = _cruisingData.value.copy(
             currentSpeed = speed,
             avgCruisingSpeed = avgSpeed,
             movingTimeMillis = totalMovingTimeMillis,
             distanceKm = totalDistanceMeters / 1000f
         )
+    }
+
+    private fun writeLocationLog(timestamp: Long, avgSpeed: Float, totalDistanceMeters: Float, location: Location) {
+        val point = LocationPoint(
+            sessionId = currentSessionId,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            altitude = location.altitude,
+            speed = lpfSpeed,
+            avgSpeed = avgSpeed,
+            totalDistanceMeters = totalDistanceMeters,
+            timestamp = timestamp
+        )
+        serviceScope.launch(Dispatchers.IO) {
+            database.locationDao().insert(point)
+        }
     }
 
     private fun calcDistance(lastLoc: Location?, newLocation: Location?): Float {
