@@ -36,6 +36,7 @@ fun DashboardScreen(
         onStartService,
         onStopService,
         onResetData,
+        onExitHistory = { viewModel.exitHistoryMode() },
         modifier
     )
 }
@@ -47,6 +48,7 @@ fun DashboardContent(
     onStartService: () -> Unit,
     onStopService: () -> Unit,
     onResetData: () -> Unit,
+    onExitHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -59,6 +61,29 @@ fun DashboardContent(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
+
+        if (cruisingData.isViewingHistory) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.padding(vertical = 12.dp).fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Viewing History Session",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    TextButton(onClick = onExitHistory) {
+                        Text("Back to Live")
+                    }
+                }
+            }
+        }
 
         if (cruisingData.sessionId != 0L) {
             Text(
@@ -77,14 +102,16 @@ fun DashboardContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.weight(1f)
         ) {
-            item {
-                StatCard(
-                    title = "Current Speed",
-                    value = "%.1f".format(cruisingData.currentSpeed * 3.6),
-                    unit = "km/h",
-                    icon = Icons.Rounded.Speed,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            if (!cruisingData.isViewingHistory) {
+                item {
+                    StatCard(
+                        title = "Current Speed",
+                        value = "%.1f".format(cruisingData.currentSpeed * 3.6),
+                        unit = "km/h",
+                        icon = Icons.Rounded.Speed,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             item {
                 StatCard(
@@ -104,24 +131,26 @@ fun DashboardContent(
                     color = MaterialTheme.colorScheme.tertiary
                 )
             }
-            item {
-                val statusColor = if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
-                StatCard(
-                    title = "Status",
-                    value = if (cruisingData.isMoving) "Moving" else "Stopped",
-                    unit = "",
-                    icon = if (cruisingData.isMoving) Icons.AutoMirrored.Rounded.DirectionsBike else Icons.Rounded.PauseCircle,
-                    color = statusColor
-                )
-            }
-            item {
-                StatCard(
-                    title = "Acceleration (LPF)",
-                    value = "%.2f".format(cruisingData.accelerationMagnitude),
-                    unit = "m/s²",
-                    icon = Icons.AutoMirrored.Rounded.TrendingUp,
-                    color = MaterialTheme.colorScheme.outline
-                )
+            if (!cruisingData.isViewingHistory) {
+                item {
+                    val statusColor = if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
+                    StatCard(
+                        title = "Status",
+                        value = if (cruisingData.isMoving) "Moving" else "Stopped",
+                        unit = "",
+                        icon = if (cruisingData.isMoving) Icons.AutoMirrored.Rounded.DirectionsBike else Icons.Rounded.PauseCircle,
+                        color = statusColor
+                    )
+                }
+                item {
+                    StatCard(
+                        title = "Acceleration (LPF)",
+                        value = "%.2f".format(cruisingData.accelerationMagnitude),
+                        unit = "m/s²",
+                        icon = Icons.AutoMirrored.Rounded.TrendingUp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
             }
             item {
                 StatCard(
@@ -251,7 +280,8 @@ fun DashboardPreview() {
             isServiceRunning = false,
             onStartService = {},
             onStopService = {},
-            onResetData = {}
+            onResetData = {},
+            onExitHistory = {}
         )
     }
 }
@@ -265,7 +295,8 @@ fun DashboardTabletPreview() {
             isServiceRunning = true,
             onStartService = {},
             onStopService = {},
-            onResetData = {}
+            onResetData = {},
+            onExitHistory = {}
         )
     }
 }

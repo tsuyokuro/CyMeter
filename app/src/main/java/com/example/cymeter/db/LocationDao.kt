@@ -21,4 +21,7 @@ interface LocationDao {
 
     @Query("SELECT sessionId FROM location_points ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestSessionId(): Long?
+
+    @Query("DELETE FROM location_points WHERE sessionId = :sessionId")
+    suspend fun deletePointsBySessionId(sessionId: Long)
 }

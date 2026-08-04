@@ -34,86 +34,26 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 > This MVP focuses on real-time data processing and high-accuracy logging without local persistence, prioritizing a lightweight and responsive user experience.
 
 ## Implementation Steps
-**Total Duration:** 40m 48s
+**Total Duration:** 3m 39s
 
-### Task_1_Service_and_Sensors: Implement the Foreground Service to handle GPS and Linear Acceleration sensor data collection.
+### Task_11_Shared_State_and_History_Selection: Implement shared navigation state and session loading. Create or update a shared ViewModel to manage the selected history session ID and 'Viewing History' mode. Update HistoryScreen to trigger session selection and fetch session data.
 - **Status:** COMPLETED
-- **Updates:** Implemented CruisingService with GPS and Linear Acceleration logging. Handled permissions and basic UI in MainActivity.
+- **Updates:** Implemented historical session selection in HistoryScreen. Updated CruisingViewModel to handle viewing mode and shared state. Added 'Viewing History' indicators and 'Back to Live' logic. Build successful.
 - **Acceptance Criteria:**
-  - Foreground Service starts with a persistent notification
-  - GPS location updates are successfully received
-  - Linear Acceleration sensor data is captured
-  - Required permissions (Location, Post Notifications) are handled
-- **Duration:** 4m 19s
+  - History item selection updates the shared ViewModel state
+  - Selected session's summary and location points are fetched from Room
+  - 'Viewing History' mode is correctly toggled when a session is selected
+- **Duration:** 2m 38s
 
-### Task_2_Cruising_Logic: Develop the logic to calculate cruising speed, using sensor data to filter out periods when the bicycle is stopped.
+### Task_12_Dashboard_Map_Integration_and_Verification: Update Dashboard and Map views to display historical data. Add 'Viewing History' mode indicators and an exit mechanism. Perform final verification for stability and UI consistency.
 - **Status:** COMPLETED
-- **Updates:** Implemented stop detection using acceleration magnitude and duration. Added cruising speed calculation that filters out stopped periods. Updated UI to show these stats.
+- **Updates:** Polished Dashboard and Map views for historical viewing. Implemented camera bounds for historical paths. Added 'Back to Live' functionality. Walkthrough updated. Ready for final verification.
 - **Acceptance Criteria:**
-  - Cruising speed calculation logic implemented
-  - Stop detection based on TYPE_LINEAR_ACCELERATION sensor is functional
-  - Filtered speed data is stored or emitted for the UI
-- **Duration:** 1m
-
-### Task_3_Compose_UI: Create the user interface using Jetpack Compose to control the service and display bicycle statistics.
-- **Status:** COMPLETED
-- **Updates:** Refined the UI into an adaptive Dashboard with Material 3 cards. Implemented Navigation 3 and NavigationSuiteScaffold for a professional look. Added Reset functionality.
-- **Acceptance Criteria:**
-  - UI contains Start/Stop buttons for the cruising log
-  - Real-time display of current speed and average cruising speed
-  - UI updates dynamically based on the service state
-- **Duration:** 7m 59s
-
-### Task_4_Run_and_Verify: Perform a final build, run the application, and verify stability and functionality.
-- **Status:** COMPLETED
-- **Updates:** Final verification completed by critic_agent. App is stable, features are functional, and UI is adaptive. Logic for stop detection and cruising speed is correctly implemented.
-- **Acceptance Criteria:**
+  - Dashboard shows statistics for the historical session
+  - Map displays the route for the historical session
+  - UI includes a clear 'Viewing History' indicator and a way to exit this mode
   - build pass
   - app does not crash
-  - all existing tests pass
-  - critic_agent verifies application stability and alignment with GPS/Sensor logging requirements
-- **Duration:** 3m 13s
-
-### Task_5_Distance_Tracking_Logic: Implement distance accumulation logic in CruisingService. Every 10 seconds, calculate the distance from the previous location and update the total distance.
-- **Status:** COMPLETED
-- **Updates:** Implemented distance accumulation logic in CruisingService. Updated CruisingState and reset logic. The coder_agent also updated the UI, so I will verify everything in the next task.
-- **Acceptance Criteria:**
-  - Distance tracking logic implemented in CruisingService
-  - Total distance is updated every 10 seconds
-  - Distance data is exposed to the ViewModel
-- **Duration:** 3m 53s
-
-### Task_6_UI_and_Verification: Update the Compose Dashboard to display the total distance in kilometers. Perform final verification to ensure stability and accuracy.
-- **Status:** COMPLETED
-- **Updates:** Verified distance tracking logic and UI. Updated the label to 'Total Distance' as per critic suggestion. App is stable and adaptive. Final walkthrough updated.
-- **Acceptance Criteria:**
-  - Dashboard UI shows total distance in KM
-  - UI updates in real-time
-  - build pass
-  - app does not crash
-  - critic_agent verifies the distance tracking feature and app stability
-- **Duration:** 3m 23s
-
-### Task_7_Room_Persistence: Implement Room database for persistence. Store tracking sessions and location points (saved every 10 seconds). Update CruisingService to manage these sessions and persist data.
-- **Status:** COMPLETED
-- **Updates:** Room database implemented with LocationPoint entity and DAO. CruisingService updated to save location every 10 seconds with a unique sessionId. Dashboard updated to show session ID.
-- **Acceptance Criteria:**
-  - Room database setup with Session and Location entities
-  - CruisingService starts a new session on tracking start and ends it on stop
-  - Location data is saved to Room every 10 seconds during tracking
-  - Data persists across app restarts
-  - build pass
-- **Duration:** 2m 59s
-
-### Task_8_MapLibre_and_Map_UI: Integrate MapLibre SDK for route visualization. Add a 'Map' tab to the adaptive UI and display the current session's path with a polyline. Perform final verification.
-- **Status:** COMPLETED
-- **Updates:** Migrated MapScreen to AndroidView implementation of MapLibre for better stability and to resolve IllegalStateException. Build successful.
-- **Acceptance Criteria:**
-  - MapLibre SDK integrated and configured (including API keys if necessary)
-  - UI contains a 'Map' tab in the navigation suite
-  - Map displays a polyline representing the current tracking session
-  - build pass
-  - app does not crash
-  - critic_agent verifies application stability and alignment with user requirements
-- **Duration:** 14m 2s
+  - critic_agent verifies history viewing functionality and overall app stability
+- **Duration:** 1m 1s
 

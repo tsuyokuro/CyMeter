@@ -1,18 +1,25 @@
 package com.example.cymeter
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
@@ -36,6 +43,7 @@ import kotlinx.serialization.json.JsonObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.LineLayer
@@ -56,6 +64,7 @@ fun MapScreen(
     modifier: Modifier = Modifier
 ) {
     val pathPoints by viewModel.pathPoints.collectAsState()
+    val cruisingData by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -136,16 +145,25 @@ fun MapScreen(
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    LaunchedEffect(pathPoints) {
+    LaunchedEffect(pathPoints, cruisingData.isViewingHistory) {
         if (pathPoints.isNotEmpty()) {
             mapView.getMapAsync { map ->
-                val lastPoint = pathPoints.last()
-                map.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(
-                        LatLng(lastPoint.latitude, lastPoint.longitude),
-                        15.0
+                if (cruisingData.isViewingHistory) {
+                    // Fit bounds for history
+                    val bounds = LatLngBounds.Builder()
+                        .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
+                        .build()
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+                } else {
+                    // Follow last point for live
+                    val lastPoint = pathPoints.last()
+                    map.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(lastPoint.latitude, lastPoint.longitude),
+                            15.0
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -171,6 +189,29 @@ fun MapScreen(
                     }
                 }
             )
+
+            if (cruisingData.isViewingHistory) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.padding(16.dp).fillMaxWidth().align(Alignment.TopCenter)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Viewing History Session",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        TextButton(onClick = { viewModel.exitHistoryMode() }) {
+                            Text("Back to Live")
+                        }
+                    }
+                }
+            }
         }
     }
 }

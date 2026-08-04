@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -45,6 +46,9 @@ data object DashboardRoute : NavKey
 
 @Serializable
 data object MapRoute : NavKey
+
+@Serializable
+data object HistoryRoute : NavKey
 
 class MainActivity : ComponentActivity() {
 
@@ -83,7 +87,9 @@ class MainActivity : ComponentActivity() {
 
                 if (permissionsState.allPermissionsGranted) {
                     val backStack = remember { mutableStateListOf<Any>(DashboardRoute) }
-                    val locationDao = remember { AppDatabase.getDatabase(applicationContext).locationDao() }
+                    val db = remember { AppDatabase.getDatabase(applicationContext) }
+                    val locationDao = remember { db.locationDao() }
+                    val sessionDao = remember { db.sessionDao() }
 
                     val onDashboardClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is DashboardRoute) {
@@ -96,6 +102,23 @@ class MainActivity : ComponentActivity() {
                         if (backStack.lastOrNull() !is MapRoute) {
                             backStack.clear()
                             backStack.add(MapRoute)
+                        }
+                    }
+
+                    val onHistoryClick = dropUnlessResumed {
+                        if (backStack.lastOrNull() !is HistoryRoute) {
+                            backStack.clear()
+                            backStack.add(HistoryRoute)
+                        }
+                    }
+
+                    val viewModel: CruisingViewModel = viewModel {
+                        CruisingViewModel(locationDao, sessionDao)
+                    }
+
+                    LaunchedEffect(cruisingService) {
+                        cruisingService?.cruisingData?.collect { data ->
+                            viewModel.updateState(data)
                         }
                     }
 
@@ -113,6 +136,12 @@ class MainActivity : ComponentActivity() {
                                 icon = { Icon(Icons.Rounded.Map, contentDescription = null) },
                                 label = { Text("Map") }
                             )
+                            item(
+                                selected = backStack.lastOrNull() is HistoryRoute,
+                                onClick = onHistoryClick,
+                                icon = { Icon(Icons.Rounded.History, contentDescription = null) },
+                                label = { Text("History") }
+                            )
                         }
                     ) {
                         NavDisplay(
@@ -125,36 +154,28 @@ class MainActivity : ComponentActivity() {
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {
-                                        val viewModel: CruisingViewModel = viewModel {
-                                            CruisingViewModel(locationDao)
-                                        }
-
-                                        LaunchedEffect(cruisingService) {
-                                            cruisingService?.cruisingData?.collect { data ->
-                                                viewModel.updateState(data)
-                                            }
-                                        }
-
                                         DashboardScreen(
                                             viewModel = viewModel,
                                             isServiceRunning = isBound,
-                                            onStartService = { startCruisingService() },
+                                            onStartService = {
+                                                viewModel.exitHistoryMode()
+                                                startCruisingService()
+                                            },
                                             onStopService = { stopCruisingService() },
                                             onResetData = { viewModel.resetData(cruisingService) }
                                         )
                                     }
                                     is MapRoute -> NavEntry(key) {
-                                        val viewModel: CruisingViewModel = viewModel {
-                                            CruisingViewModel(locationDao)
-                                        }
-
-                                        LaunchedEffect(cruisingService) {
-                                            cruisingService?.cruisingData?.collect { data ->
-                                                viewModel.updateState(data)
-                                            }
-                                        }
-
                                         MapScreen(viewModel = viewModel)
+                                    }
+                                    is HistoryRoute -> NavEntry(key) {
+                                        HistoryScreen(
+                                            viewModel = viewModel,
+                                            onSessionSelected = { sessionId ->
+                                                viewModel.selectHistoricalSession(sessionId)
+                                                onDashboardClick()
+                                            }
+                                        )
                                     }
                                     else -> error("Unknown route $key")
                                 }

@@ -22,6 +22,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.example.cymeter.db.AppDatabase
 import com.example.cymeter.db.LocationPoint
+import com.example.cymeter.db.Session
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
 
 class CruisingService : Service() {
@@ -59,6 +61,8 @@ class CruisingService : Service() {
     // DB
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentSessionId: Long = 0L
+    @Volatile
+    private var currentSession: Session? = null
     private var lastSaveTime: Long = 0L
     private var lastSaveLocation: Location? = null
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -91,7 +95,8 @@ class CruisingService : Service() {
         val movingTimeMillis: Long = 0L,
         val accelerationMagnitude: Float = 0f,
         val distanceKm: Float = 0.0f,
-        val sessionId: Long = 0L
+        val sessionId: Long = 0L,
+        val isViewingHistory: Boolean = false
     )
 
     inner class LocalBinder : Binder() {
@@ -156,34 +161,39 @@ class CruisingService : Service() {
         if (isTracking) return
         isTracking = true
 
-        if (currentSessionId == 0L) {
-            currentSessionId = System.currentTimeMillis()
-        }
-        
-        _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
+        serviceScope.launch {
+            val startTime = System.currentTimeMillis()
+            currentSessionId = withContext(Dispatchers.IO) {
+                val session = Session(startTime = startTime)
+                val id = database.sessionDao().insert(session)
+                currentSession = session.copy(id = id)
+                id
+            }
+            _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
 
-        lastSaveTime = 0L
-        lastSaveLocation = null
+            lastSaveTime = 0L
+            lastSaveLocation = null
 
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-            .setMinUpdateIntervalMillis(500)
-            .build()
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                .setMinUpdateIntervalMillis(500)
+                .build()
 
-        try {
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-            )
-        } catch (_: SecurityException) {
-            // Permissions should be handled in Activity
-        }
+            try {
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+                )
+            } catch (_: SecurityException) {
+                // Permissions should be handled in Activity
+            }
 
-        linearAccelerationSensor?.let {
-            sensorManager.registerListener(
-                linearAccelerationListener,
-                it,
-                SensorManager.SENSOR_DELAY_UI)
+            linearAccelerationSensor?.let {
+                sensorManager.registerListener(
+                    linearAccelerationListener,
+                    it,
+                    SensorManager.SENSOR_DELAY_UI)
+            }
         }
     }
 
@@ -194,29 +204,43 @@ class CruisingService : Service() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         sensorManager.unregisterListener(linearAccelerationListener)
 
-        if (lastDistanceLocation != null) {
-            val currentTime = System.currentTimeMillis()
-            val avgSpeed = _cruisingData.value.avgCruisingSpeed
+        val currentTime = System.currentTimeMillis()
+        val avgSpeed = _cruisingData.value.avgCruisingSpeed
 
-            val point = LocationPoint(
-                sessionId = currentSessionId,
-                latitude = lastDistanceLocation!!.latitude,
-                longitude = lastDistanceLocation!!.longitude,
-                altitude = lastDistanceLocation!!.altitude,
-                speed = lpfSpeed,
-                avgSpeed = avgSpeed,
-                totalDistanceMeters = totalDistanceMeters,
-                movingTimeMillis = totalMovingTimeMillis,
-                timestamp = currentTime
-            )
-            // Use runBlocking to ensure the final point is saved before the service is fully destroyed
-            kotlinx.coroutines.runBlocking {
+        kotlinx.coroutines.runBlocking {
+            if (lastDistanceLocation != null) {
+                val point = LocationPoint(
+                    sessionId = currentSessionId,
+                    latitude = lastDistanceLocation!!.latitude,
+                    longitude = lastDistanceLocation!!.longitude,
+                    altitude = lastDistanceLocation!!.altitude,
+                    speed = lpfSpeed,
+                    avgSpeed = avgSpeed,
+                    totalDistanceMeters = totalDistanceMeters,
+                    movingTimeMillis = totalMovingTimeMillis,
+                    timestamp = currentTime
+                )
                 database.locationDao().insert(point)
+            }
+
+            currentSession?.let { session ->
+                database.sessionDao().update(session.copy(
+                    endTime = currentTime,
+                    avgSpeed = avgSpeed,
+                    totalDistance = totalDistanceMeters,
+                    totalMovingTime = totalMovingTimeMillis
+                ))
             }
         }
     }
 
     fun resetData() {
+        val lastAvgSpeed = _cruisingData.value.avgCruisingSpeed
+        val lastTotalDistance = totalDistanceMeters
+        val lastTotalMovingTime = totalMovingTimeMillis
+        val lastCurrentSessionId = currentSessionId
+        val lastCurrentSession = currentSession
+
         totalSpeedSum = 0.0
         speedSamplesCount = 0
         totalMovingTimeMillis = 0
@@ -226,17 +250,39 @@ class CruisingService : Service() {
         lastSaveLocation = null
         lastSaveTime = 0L
 
-        currentSessionId = System.currentTimeMillis()
+        serviceScope.launch {
+            if (isTracking && lastCurrentSessionId != 0L) {
+                val endTime = System.currentTimeMillis()
+                withContext(Dispatchers.IO) {
+                    lastCurrentSession?.let { session ->
+                        database.sessionDao().update(session.copy(
+                            endTime = endTime,
+                            avgSpeed = lastAvgSpeed,
+                            totalDistance = lastTotalDistance,
+                            totalMovingTime = lastTotalMovingTime
+                        ))
+                    }
+                }
+            }
 
-        _cruisingData.value = CruisingState(
-            isMoving = isMovingInternal,
-            currentSpeed = _cruisingData.value.currentSpeed,
-            avgCruisingSpeed = 0f,
-            movingTimeMillis = 0L,
-            accelerationMagnitude = _cruisingData.value.accelerationMagnitude,
-            distanceKm = 0.0f,
-            sessionId = currentSessionId
-        )
+            val startTime = System.currentTimeMillis()
+            currentSessionId = withContext(Dispatchers.IO) {
+                val newSession = Session(startTime = startTime)
+                val id = database.sessionDao().insert(newSession)
+                currentSession = newSession.copy(id = id)
+                id
+            }
+
+            _cruisingData.value = CruisingState(
+                isMoving = isMovingInternal,
+                currentSpeed = _cruisingData.value.currentSpeed,
+                avgCruisingSpeed = 0f,
+                movingTimeMillis = 0L,
+                accelerationMagnitude = _cruisingData.value.accelerationMagnitude,
+                distanceKm = 0.0f,
+                sessionId = currentSessionId
+            )
+        }
     }
 
     override fun onDestroy() {
@@ -334,6 +380,17 @@ class CruisingService : Service() {
         )
         serviceScope.launch(Dispatchers.IO) {
             database.locationDao().insert(point)
+            
+            val session = currentSession
+            if (session != null) {
+                val updatedSession = session.copy(
+                    avgSpeed = avgSpeed,
+                    totalDistance = totalDistanceMeters,
+                    totalMovingTime = totalMovingTimeMillis
+                )
+                database.sessionDao().update(updatedSession)
+                currentSession = updatedSession
+            }
         }
     }
 

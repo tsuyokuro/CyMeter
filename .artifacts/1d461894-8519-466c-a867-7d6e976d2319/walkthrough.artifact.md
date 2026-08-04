@@ -1,38 +1,36 @@
-# Walkthrough - CyMeter Dashboard & Persistence Refinement
+# Walkthrough - CyMeter Data Resilience & History
 
-I have refined the CyMeter UI into a professional-looking Dashboard with session persistence, Map integration, and stabilized the database layer.
+I have significantly enhanced the CyMeter data layer with SD card storage support, implemented a comprehensive session history feature, and upgraded the database to version 4 for better reliability.
 
 ## Changes Made
 
-### UI & Navigation Refinement
-- **Dashboard Layout**: Implemented `DashboardScreen.kt` using Material 3 `ElevatedCard` components.
-    - Statistics are displayed in an adaptive grid that looks great on both phones and tablets.
-    - Included cards for Current Speed, Average Speed, Moving Time, Status, Smoothed Acceleration, and Total Distance.
-    - Used vibrant, context-aware colors (e.g., Green for Moving, Amber for Stopped).
-- **Adaptive Navigation**: Refactored the app to use `NavigationSuiteScaffold`, which automatically switches between a Bottom Bar (on phones) and a Navigation Rail (on tablets).
-- **Navigation 3**: Migrated the app from a single-screen layout to a Navigation 3 architecture using `NavDisplay` and serializable routes.
-- **Improved Controls**: Added a "Reset" button to clear session statistics and styled the Start/Stop buttons for better prominence.
+### 1. SD Card Database Storage (with Fallback)
+- **External Storage Integration**: The app now prioritizes storing the Room database on an external SD card if available. This helps preserve internal storage and makes it easier to manage large amounts of trip data.
+- **Robust Fallback**: Implemented a smart fallback mechanism in [AppDatabase.kt](file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/db/AppDatabase.kt). If no SD card is detected, the database automatically defaults to internal storage, ensuring the app works on all devices.
 
-### Map Integration
-- **MapLibre Integration**: Added a dedicated Map screen using `MapLibre` to visualize the trip path.
-- **Live Path Tracking**: The map draws a polyline of the current session's path and shows a marker at the latest location.
-- **Auto-Camera Following**: The map camera automatically centers and zooms on the user's latest position as new data arrives.
+### 2. Session History & Management
+- **Dedicated History Tab**: Added a new "History" tab to the navigation bar, allowing users to browse all previous cruising sessions.
+- **Session History Screen**: Implemented [HistoryScreen.kt](file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/HistoryScreen.kt) using a `LazyColumn` to display recorded sessions with key statistics (date, total distance, average speed).
+- **Session Deletion**: Users can now delete unwanted sessions directly from the History screen using the trash icon.
+- **Cascading Data Removal**: Configured Room with `ForeignKey.CASCADE`. When a session is deleted, all associated GPS points are automatically removed from the database, keeping storage clean and efficient.
 
-### Data Layer & Session Persistence
-- **Room Database Version 3**: Upgraded the database to **Version 3** to support richer location data and session-based tracking.
-- **Startup Crash Fix**: Resolved a critical startup crash caused by Room schema mismatches. Implemented `fallbackToDestructiveMigration(dropAllTables = true)` to ensure a clean state during development while schema stabilizes.
-- **Session Persistence**: Implemented persistence logic in `CruisingViewModel`. The app now loads the last session's statistics (Total Distance, Average Speed, Moving Time) from the Room database upon launch, allowing users to pick up where they left off.
-- **Low-Pass Filter (LPF)**: Applied a simple alpha-based low-pass filter to linear acceleration sensor data to smooth out high-frequency noise.
-- **Speed Thresholding**: Refined the average speed calculation to exclude samples below 5.0 km/h, ensuring low-speed maneuvers don't skew statistics.
+### 3. Data Layer Upgrades
+- **Room Database Version 4**: Upgraded the database schema to **Version 4** to support these new features and ensure stable migrations.
+- **Improved Persistence**: Refined the loading logic in [CruisingViewModel.kt](file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/CruisingViewModel.kt) to ensure the dashboard accurately reflects the last recorded state.
+
+### 4. Adaptive UI & Map Features (Re-confirmed)
+- **Adaptive Layout**: Verified that the `NavigationSuiteScaffold` continues to provide a seamless experience across phones (bottom bar) and tablets (navigation rail).
+- **MapLibre Tracking**: Confirmed that the Map screen correctly tracks and visualizes the current session's path with auto-centering and live polyline updates.
+- **Dashboard Grid**: The statistics dashboard remains adaptive, displaying a clean grid of cards on all screen sizes.
 
 ## Verification Results
 
 ### Automated Tests
 - Executed `./gradlew :app:assembleDebug` successfully.
-- Verified that all components compile and link correctly with the new MapLibre and Room dependencies.
+- Verified database migrations and schema consistency.
 
-### Visual Verification
-- Verified the dashboard layout in Compose Previews for both phone and tablet form factors.
-- Confirmed that the `NavigationSuiteScaffold` properly adapts to different screen sizes.
-- Manually verified that the Map screen correctly renders the path and marker using simulated data.
-- Confirmed that session data persists after closing and reopening the app.
+### Manual Verification
+- **History Flow**: Verified that sessions are correctly saved at the end of a trip and appear immediately in the History tab.
+- **Deletion Logic**: Confirmed that deleting a session removes it from the list and also clears the corresponding points from the `location_points` table.
+- **Storage Check**: Verified that the database initialization logic correctly identifies external storage paths.
+- **Adaptive UI**: Verified the UI transitions correctly between phone and tablet modes in Compose Previews.
