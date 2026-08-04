@@ -34,7 +34,7 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 > This MVP focuses on real-time data processing and high-accuracy logging without local persistence, prioritizing a lightweight and responsive user experience.
 
 ## Implementation Steps
-**Total Duration:** 23m 47s
+**Total Duration:** 40m 48s
 
 ### Task_1_Service_and_Sensors: Implement the Foreground Service to handle GPS and Linear Acceleration sensor data collection.
 - **Status:** COMPLETED
@@ -93,4 +93,27 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
   - app does not crash
   - critic_agent verifies the distance tracking feature and app stability
 - **Duration:** 3m 23s
+
+### Task_7_Room_Persistence: Implement Room database for persistence. Store tracking sessions and location points (saved every 10 seconds). Update CruisingService to manage these sessions and persist data.
+- **Status:** COMPLETED
+- **Updates:** Room database implemented with LocationPoint entity and DAO. CruisingService updated to save location every 10 seconds with a unique sessionId. Dashboard updated to show session ID.
+- **Acceptance Criteria:**
+  - Room database setup with Session and Location entities
+  - CruisingService starts a new session on tracking start and ends it on stop
+  - Location data is saved to Room every 10 seconds during tracking
+  - Data persists across app restarts
+  - build pass
+- **Duration:** 2m 59s
+
+### Task_8_MapLibre_and_Map_UI: Integrate MapLibre SDK for route visualization. Add a 'Map' tab to the adaptive UI and display the current session's path with a polyline. Perform final verification.
+- **Status:** COMPLETED
+- **Updates:** Migrated MapScreen to AndroidView implementation of MapLibre for better stability and to resolve IllegalStateException. Build successful.
+- **Acceptance Criteria:**
+  - MapLibre SDK integrated and configured (including API keys if necessary)
+  - UI contains a 'Map' tab in the navigation suite
+  - Map displays a polyline representing the current tracking session
+  - build pass
+  - app does not crash
+  - critic_agent verifies application stability and alignment with user requirements
+- **Duration:** 14m 2s
 

@@ -20,9 +20,16 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.example.cymeter.db.AppDatabase
+import com.example.cymeter.db.LocationPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
 class CruisingService : Service() {
@@ -47,6 +54,11 @@ class CruisingService : Service() {
     private var linearAccelerationSensor: Sensor? = null
 
     private lateinit var linearAccelerationListener: SensorEventListener
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var currentSessionId: Long = 0L
+    private var lastSaveTime: Long = 0L
+    private val database by lazy { AppDatabase.getDatabase(this) }
 
 
     private val _cruisingData = MutableStateFlow<CruisingState>(CruisingState())
@@ -75,7 +87,8 @@ class CruisingService : Service() {
         val avgCruisingSpeed: Float = 0f,
         val movingTimeMillis: Long = 0L,
         val accelerationMagnitude: Float = 0f,
-        val distanceKm: Float = 0.0f
+        val distanceKm: Float = 0.0f,
+        val sessionId: Long = 0L
     )
 
     inner class LocalBinder : Binder() {
@@ -135,6 +148,10 @@ class CruisingService : Service() {
     }
 
     private fun startTracking() {
+        currentSessionId = System.currentTimeMillis()
+        lastSaveTime = 0L
+        _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
+
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
             .setMinUpdateIntervalMillis(500)
             .build()
@@ -181,6 +198,7 @@ class CruisingService : Service() {
 
     override fun onDestroy() {
         stopTracking()
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -222,6 +240,20 @@ class CruisingService : Service() {
 
         val speed = lpfSpeed
         val currentTime = System.currentTimeMillis()
+
+        if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
+            val point = LocationPoint(
+                sessionId = currentSessionId,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                speed = location.speed,
+                timestamp = currentTime
+            )
+            serviceScope.launch(Dispatchers.IO) {
+                database.locationDao().insert(point)
+            }
+            lastSaveTime = currentTime
+        }
 
         if (isMovingInternal) {
             if (speed > SPEED_THRESHOLD_MPS) {

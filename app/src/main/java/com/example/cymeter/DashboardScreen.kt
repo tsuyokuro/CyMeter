@@ -57,9 +57,19 @@ fun DashboardContent(
         Text(
             text = "Cruising Dashboard",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            fontWeight = FontWeight.Bold
         )
+
+        if (cruisingData.sessionId != 0L) {
+            Text(
+                text = "Session: ${cruisingData.sessionId}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 160.dp),

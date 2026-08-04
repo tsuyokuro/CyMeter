@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
@@ -33,6 +34,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.example.cymeter.db.AppDatabase
 import com.example.cymeter.ui.theme.CyMeterTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -40,6 +42,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data object DashboardRoute : NavKey
+
+@Serializable
+data object MapRoute : NavKey
 
 class MainActivity : ComponentActivity() {
 
@@ -78,10 +83,19 @@ class MainActivity : ComponentActivity() {
 
                 if (permissionsState.allPermissionsGranted) {
                     val backStack = remember { mutableStateListOf<Any>(DashboardRoute) }
+                    val locationDao = remember { AppDatabase.getDatabase(applicationContext).locationDao() }
+
                     val onDashboardClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is DashboardRoute) {
                             backStack.clear()
                             backStack.add(DashboardRoute)
+                        }
+                    }
+
+                    val onMapClick = dropUnlessResumed {
+                        if (backStack.lastOrNull() !is MapRoute) {
+                            backStack.clear()
+                            backStack.add(MapRoute)
                         }
                     }
 
@@ -92,6 +106,12 @@ class MainActivity : ComponentActivity() {
                                 onClick = onDashboardClick,
                                 icon = { Icon(Icons.Rounded.Dashboard, contentDescription = null) },
                                 label = { Text("Dashboard") }
+                            )
+                            item(
+                                selected = backStack.lastOrNull() is MapRoute,
+                                onClick = onMapClick,
+                                icon = { Icon(Icons.Rounded.Map, contentDescription = null) },
+                                label = { Text("Map") }
                             )
                         }
                     ) {
@@ -105,7 +125,9 @@ class MainActivity : ComponentActivity() {
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {
-                                        val viewModel: CruisingViewModel = viewModel()
+                                        val viewModel: CruisingViewModel = viewModel {
+                                            CruisingViewModel(locationDao)
+                                        }
 
                                         LaunchedEffect(cruisingService) {
                                             cruisingService?.cruisingData?.collect { data ->
@@ -120,6 +142,19 @@ class MainActivity : ComponentActivity() {
                                             onStopService = { stopCruisingService() },
                                             onResetData = { viewModel.resetData(cruisingService) }
                                         )
+                                    }
+                                    is MapRoute -> NavEntry(key) {
+                                        val viewModel: CruisingViewModel = viewModel {
+                                            CruisingViewModel(locationDao)
+                                        }
+
+                                        LaunchedEffect(cruisingService) {
+                                            cruisingService?.cruisingData?.collect { data ->
+                                                viewModel.updateState(data)
+                                            }
+                                        }
+
+                                        MapScreen(viewModel = viewModel)
                                     }
                                     else -> error("Unknown route $key")
                                 }
