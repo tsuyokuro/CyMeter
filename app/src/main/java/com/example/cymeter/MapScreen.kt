@@ -1,5 +1,6 @@
 package com.example.cymeter
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -7,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -18,44 +21,38 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.cymeter.db.LocationPoint
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.LocationComponentOptions
+import org.maplibre.android.location.modes.RenderMode
+import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
-import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.GeoJson
-import org.maplibre.spatialk.geojson.Geometry
 import org.maplibre.spatialk.geojson.LineString
-import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
 
 @Composable
@@ -67,6 +64,7 @@ fun MapScreen(
     val cruisingData by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    var isAutoFollowEnabled by remember { mutableStateOf(true) }
 
     // Initialize MapLibre
     remember(context) {
@@ -97,23 +95,15 @@ fun MapScreen(
         }
     }
 
-    val density = LocalDensity.current
-    val locationPainter = rememberVectorPainter(Icons.Filled.LocationOn)
-    val locationBitmap = remember(locationPainter, density) {
-        val size = with(density) { 32.dp.toPx() }
-        val bitmap = ImageBitmap(size.toInt(), size.toInt())
-        val canvas = Canvas(bitmap)
-        CanvasDrawScope().draw(
-            density = density,
-            layoutDirection = LayoutDirection.Ltr,
-            canvas = canvas,
-            size = Size(size, size)
-        ) {
-            with(locationPainter) {
-                draw(size = Size(size, size))
+    // Smart Camera Follow Listener
+    LaunchedEffect(mapView) {
+        mapView.getMapAsync { map ->
+            map.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    isAutoFollowEnabled = false
+                }
             }
         }
-        bitmap.asAndroidBitmap()
     }
 
     val lineDataJson = remember(pathPoints) {
@@ -124,28 +114,14 @@ fun MapScreen(
             val collection = FeatureCollection<LineString, JsonObject?>(listOf(feature))
             GeoJson.jsonFormat.encodeToString(collection)
         } else {
-            val collection = FeatureCollection<Geometry, JsonObject?>(emptyList())
-            GeoJson.jsonFormat.encodeToString(collection)
-        }
-    }
-
-    val markerDataJson = remember(pathPoints) {
-        if (pathPoints.isNotEmpty()) {
-            val lastPoint = pathPoints.last()
-            val position = Position(longitude = lastPoint.longitude, latitude = lastPoint.latitude)
-            val point = Point(position)
-            val feature = Feature<Point, JsonObject?>(point, null)
-            val collection = FeatureCollection<Point, JsonObject?>(listOf(feature))
-            GeoJson.jsonFormat.encodeToString(collection)
-        } else {
-            val collection = FeatureCollection<Geometry, JsonObject?>(emptyList())
+            val collection = FeatureCollection<LineString, JsonObject?>(emptyList())
             GeoJson.jsonFormat.encodeToString(collection)
         }
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    LaunchedEffect(pathPoints, cruisingData.isViewingHistory) {
+    LaunchedEffect(pathPoints, cruisingData.isViewingHistory, isAutoFollowEnabled) {
         if (pathPoints.isNotEmpty()) {
             mapView.getMapAsync { map ->
                 if (cruisingData.isViewingHistory) {
@@ -154,15 +130,16 @@ fun MapScreen(
                         .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
                         .build()
                     map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
-                } else {
+                } else if (isAutoFollowEnabled) {
                     // Follow last point for live
                     val lastPoint = pathPoints.last()
-                    map.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(
-                            LatLng(lastPoint.latitude, lastPoint.longitude),
-                            15.0
-                        )
-                    )
+                    val target = LatLng(lastPoint.latitude, lastPoint.longitude)
+                    val currentZoom = map.cameraPosition.zoom
+                    if (currentZoom < 5.0) {
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 15.0))
+                    } else {
+                        map.animateCamera(CameraUpdateFactory.newLatLng(target))
+                    }
                 }
             }
         }
@@ -180,11 +157,12 @@ fun MapScreen(
                         val styleUri = "https://tiles.openfreemap.org/styles/liberty"
                         if (map.style?.uri != styleUri) {
                             map.setStyle(styleUri) { style ->
-                                setupStyle(style, primaryColor, locationBitmap)
-                                updateMapData(style, lineDataJson, markerDataJson)
+                                setupStyle(style, primaryColor)
+                                enableLocationComponent(map, style, context)
+                                updateMapData(style, lineDataJson)
                             }
                         } else {
-                            map.style?.let { updateMapData(it, lineDataJson, markerDataJson) }
+                            map.style?.let { updateMapData(it, lineDataJson) }
                         }
                     }
                 }
@@ -212,11 +190,34 @@ fun MapScreen(
                     }
                 }
             }
+
+            if (!isAutoFollowEnabled && !cruisingData.isViewingHistory) {
+                SmallFloatingActionButton(
+                    onClick = {
+                        isAutoFollowEnabled = true
+                        mapView.getMapAsync { map ->
+                            pathPoints.lastOrNull()?.let { lastPoint ->
+                                map.animateCamera(
+                                    CameraUpdateFactory.newLatLngZoom(
+                                        LatLng(lastPoint.latitude, lastPoint.longitude),
+                                        15.0
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.BottomEnd)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "Recenter")
+                }
+            }
         }
     }
 }
 
-private fun setupStyle(style: Style, primaryColor: Color, locationBitmap: android.graphics.Bitmap) {
+private fun setupStyle(style: Style, primaryColor: Color) {
     if (style.getSource("polyline-source") == null) {
         style.addSource(GeoJsonSource("polyline-source"))
         style.addLayer(
@@ -228,28 +229,25 @@ private fun setupStyle(style: Style, primaryColor: Color, locationBitmap: androi
             }
         )
     }
-
-    if (style.getSource("marker-source") == null) {
-        style.addImage("marker-icon", locationBitmap, true)
-        style.addSource(GeoJsonSource("marker-source"))
-        style.addLayer(
-            SymbolLayer("marker-layer", "marker-source").apply {
-                setProperties(
-                    PropertyFactory.iconImage("marker-icon"),
-                    PropertyFactory.iconColor(Color.Red.toArgb()),
-                    PropertyFactory.iconSize(1.5f),
-                    PropertyFactory.iconAllowOverlap(true),
-                    PropertyFactory.iconIgnorePlacement(true)
-                )
-            }
-        )
-    }
 }
 
-private fun updateMapData(style: Style, lineDataJson: String, markerDataJson: String) {
+private fun updateMapData(style: Style, lineDataJson: String) {
     val polylineSource = style.getSourceAs<GeoJsonSource>("polyline-source")
     polylineSource?.setGeoJson(lineDataJson)
+}
 
-    val markerSource = style.getSourceAs<GeoJsonSource>("marker-source")
-    markerSource?.setGeoJson(markerDataJson)
+@SuppressLint("MissingPermission")
+private fun enableLocationComponent(map: MapLibreMap, style: Style, context: android.content.Context) {
+    val locationComponentOptions = LocationComponentOptions.builder(context)
+        .pulseEnabled(false) // 現在位置アイコンのアニメーション
+        .build()
+
+    val locationComponent = map.locationComponent
+    locationComponent.activateLocationComponent(
+        LocationComponentActivationOptions.builder(context, style)
+            .locationComponentOptions(locationComponentOptions)
+            .build()
+    )
+    locationComponent.isLocationComponentEnabled = true
+    locationComponent.renderMode = RenderMode.NORMAL // 現在位置アイコンの方向表示
 }

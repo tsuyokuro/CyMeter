@@ -34,7 +34,7 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 > This MVP focuses on real-time data processing and high-accuracy logging without local persistence, prioritizing a lightweight and responsive user experience.
 
 ## Implementation Steps
-**Total Duration:** 3m 39s
+**Total Duration:** 6m 12s
 
 ### Task_11_Shared_State_and_History_Selection: Implement shared navigation state and session loading. Create or update a shared ViewModel to manage the selected history session ID and 'Viewing History' mode. Update HistoryScreen to trigger session selection and fetch session data.
 - **Status:** COMPLETED
@@ -56,4 +56,25 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
   - app does not crash
   - critic_agent verifies history viewing functionality and overall app stability
 - **Duration:** 1m 1s
+
+### Task_13_Map_UI_and_Camera_Refinement: Implement MapScreen refinements: replace the location icon with a pulsing blue dot using the LocationComponent, add smart camera follow logic that pauses on user interaction (pan/zoom), and integrate a 'Recenter' button to resume tracking.
+- **Status:** COMPLETED
+- **Updates:** Implemented MapLibre LocationComponent for pulsing blue dot. Added smart camera follow logic with manual interaction detection. Integrated a Recenter button to resume auto-follow. Removed old manual marker code.
+- **Acceptance Criteria:**
+  - Map displays a pulsing blue dot at the user's current location
+  - Camera follows the user's location by default
+  - Camera tracking pauses when the user manually pans or zooms the map
+  - A 'Recenter' button is visible when tracking is paused
+  - Clicking 'Recenter' button resumes camera tracking and centers on the user
+- **Duration:** 2m 33s
+
+### Task_14_Run_and_Verify: Run the application and perform a final verification of all features, specifically focusing on the map refinements and general stability.
+- **Status:** IN_PROGRESS
+- **Acceptance Criteria:**
+  - Map refinements (pulsing dot, smart follow, recenter) work as expected
+  - build pass
+  - app does not crash
+  - make sure all existing tests pass
+  - critic_agent verifies application stability and alignment with user requirements
+- **StartTime:** 2026-08-05 20:42:16 JST
 
