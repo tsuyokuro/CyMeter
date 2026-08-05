@@ -34,6 +34,12 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.navigation3.ui.NavDisplay
 import com.example.cymeter.db.AppDatabase
 import com.example.cymeter.ui.theme.CyMeterTheme
@@ -151,6 +157,36 @@ class MainActivity : ComponentActivity() {
                                 rememberSaveableStateHolderNavEntryDecorator(),
                                 rememberViewModelStoreNavEntryDecorator()
                             ),
+                            transitionSpec = {
+                                val routes = listOf(DashboardRoute, MapRoute, HistoryRoute)
+                                val initialIndex = routes.indexOf(initialState.key)
+                                val targetIndex = routes.indexOf(targetState.key)
+                                val direction = if (targetIndex >= initialIndex) 1 else -1
+
+                                slideInHorizontally(
+                                    initialOffsetX = { direction * it },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300)) togetherWith
+                                        slideOutHorizontally(
+                                            targetOffsetX = { -direction * it },
+                                            animationSpec = tween(300)
+                                        ) + fadeOut(animationSpec = tween(300))
+                            },
+                            popTransitionSpec = {
+                                val routes = listOf(DashboardRoute, MapRoute, HistoryRoute)
+                                val initialIndex = routes.indexOf(initialState.key)
+                                val targetIndex = routes.indexOf(targetState.key)
+                                val direction = if (targetIndex >= initialIndex) 1 else -1
+
+                                slideInHorizontally(
+                                    initialOffsetX = { direction * it },
+                                    animationSpec = tween(300)
+                                ) + fadeIn(animationSpec = tween(300)) togetherWith
+                                        slideOutHorizontally(
+                                            targetOffsetX = { -direction * it },
+                                            animationSpec = tween(300)
+                                        ) + fadeOut(animationSpec = tween(300))
+                            },
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {

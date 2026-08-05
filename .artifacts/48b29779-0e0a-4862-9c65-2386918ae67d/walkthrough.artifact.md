@@ -29,6 +29,11 @@ I have significantly enhanced the CyMeter data layer with SD card storage suppor
 - **MapLibre Tracking**: Confirmed that the Map screen correctly tracks and visualizes the current session's path with auto-centering and live polyline updates.
 - **Dashboard Grid**: The statistics dashboard remains adaptive, displaying a clean grid of cards on all screen sizes.
 
+### 6. Tab-Aware Slide Animations
+- **Directional Navigation**: Implemented dynamic horizontal slide transitions in [MainActivity.kt](file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/MainActivity.kt). The app now detects the direction of movement between tabs (e.g., Dashboard -> Map is forward, Map -> Dashboard is backward).
+- **Index-Based Logic**: Used the relative index of routes (`Dashboard`, `Map`, `History`) to determine the slide direction (Right-to-Left for forward, Left-to-Right for backward).
+- **Smooth Transitions**: Applied 300ms `tween` animations combined with `fadeIn` and `fadeOut` effects for a polished, modern feel.
+
 ## Verification Results
 
 ### Automated Tests
