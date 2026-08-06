@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
                     val db = remember { AppDatabase.getDatabase(applicationContext) }
                     val locationDao = remember { db.locationDao() }
                     val sessionDao = remember { db.sessionDao() }
+                    val settingsRepository = remember { SettingsRepository(applicationContext) }
 
                     val onDashboardClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is DashboardRoute) {
@@ -119,7 +120,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val viewModel: CruisingViewModel = viewModel {
-                        CruisingViewModel(locationDao, sessionDao)
+                        CruisingViewModel(locationDao, sessionDao, settingsRepository)
                     }
 
                     LaunchedEffect(cruisingService) {

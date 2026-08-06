@@ -29,6 +29,9 @@ fun DashboardScreen(
 ) {
     val cruisingData : CruisingService.CruisingState
         by viewModel.uiState.collectAsStateWithLifecycle()
+    val speedThreshold by viewModel.speedThresholdKmh.collectAsStateWithLifecycle()
+    
+    var showSettings by remember { mutableStateOf(false) }
 
     DashboardContent(
         cruisingData,
@@ -37,8 +40,20 @@ fun DashboardScreen(
         onStopService,
         onResetData,
         onExitHistory = { viewModel.exitHistoryMode() },
+        onOpenSettings = { showSettings = true },
         modifier
     )
+    
+    if (showSettings) {
+        ThresholdSettingsDialog(
+            currentThreshold = speedThreshold,
+            onDismiss = { showSettings = false },
+            onConfirm = { 
+                viewModel.updateSpeedThreshold(it)
+                showSettings = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -49,6 +64,7 @@ fun DashboardContent(
     onStopService: () -> Unit,
     onResetData: () -> Unit,
     onExitHistory: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -56,11 +72,21 @@ fun DashboardContent(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Cruising Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Cruising Dashboard",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+            }
+        }
 
         if (cruisingData.isViewingHistory) {
             Surface(
@@ -85,16 +111,7 @@ fun DashboardContent(
             }
         }
 
-        if (cruisingData.sessionId != 0L) {
-            Text(
-                text = "Session: ${cruisingData.sessionId}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        } else {
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+        Spacer(modifier = Modifier.height(24.dp))
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 160.dp),
@@ -120,6 +137,15 @@ fun DashboardContent(
                     unit = "km/h",
                     icon = Icons.Rounded.History,
                     color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            item {
+                StatCard(
+                    title = "Max Speed",
+                    value = "%.1f".format(cruisingData.maxSpeed * 3.6),
+                    unit = "km/h",
+                    icon = Icons.AutoMirrored.Rounded.TrendingUp,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             item {
@@ -262,6 +288,74 @@ fun formatMovingTime(millis: Long): String {
     return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThresholdSettingsDialog(
+    currentThreshold: Float,
+    onDismiss: () -> Unit,
+    onConfirm: (Float) -> Unit
+) {
+    var textValue by remember { mutableStateOf(currentThreshold.toString()) }
+    var expanded by remember { mutableStateOf(false) }
+    val presets = listOf("3.0", "5.0", "8.0", "10.0", "15.0")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Speed Threshold") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Threshold to consider as moving (km/h)")
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = textValue,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Threshold") },
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        presets.forEach { preset ->
+                            DropdownMenuItem(
+                                text = { Text(preset) },
+                                onClick = {
+                                    textValue = preset
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val value = textValue.toFloatOrNull() ?: currentThreshold
+                    onConfirm(value)
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun DashboardPreview() {
@@ -272,7 +366,8 @@ fun DashboardPreview() {
             onStartService = {},
             onStopService = {},
             onResetData = {},
-            onExitHistory = {}
+            onExitHistory = {},
+            onOpenSettings = {}
         )
     }
 }
@@ -287,7 +382,8 @@ fun DashboardTabletPreview() {
             onStartService = {},
             onStopService = {},
             onResetData = {},
-            onExitHistory = {}
+            onExitHistory = {},
+            onOpenSettings = {}
         )
     }
 }

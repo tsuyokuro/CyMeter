@@ -34,6 +34,12 @@ I have significantly enhanced the CyMeter data layer with SD card storage suppor
 - **Index-Based Logic**: Used the relative index of routes (`Dashboard`, `Map`, `History`) to determine the slide direction (Right-to-Left for forward, Left-to-Right for backward).
 - **Smooth Transitions**: Applied 300ms `tween` animations combined with `fadeIn` and `fadeOut` effects for a polished, modern feel.
 
+### 7. UI Refinements & User Settings
+- **Dashboard Cleanup**: Removed the "Session ID" card from the dashboard to reduce clutter and focus on performance metrics that matter most to the user.
+- **Enhanced Settings Dialog**: Improved the "Speed Threshold" settings dialog in [DashboardScreen.kt](file:///H:/android_prj/cymeter/app/src/main/java/com/example/cymeter/DashboardScreen.kt) by adding a preset dropdown.
+- **Preset Options**: Users can now quickly select common thresholds (3.0, 5.0, 8.0, 10.0, 15.0 km/h) from a dropdown menu.
+- **Flexible Manual Entry**: Maintained full support for manual entry within the same field, allowing users to specify custom threshold values if needed.
+
 ## Verification Results
 
 ### Automated Tests
@@ -42,6 +48,9 @@ I have significantly enhanced the CyMeter data layer with SD card storage suppor
 
 ### Manual Verification
 - **History Flow**: Verified that sessions are correctly saved at the end of a trip and appear immediately in the History tab.
+- **Settings UX**: Verified that the new dropdown in the Speed Threshold dialog correctly populates the text field and saves the value.
+- **Manual Entry**: Confirmed that users can still type custom values into the threshold field.
+- **Dashboard Layout**: Confirmed the dashboard looks cleaner without the Session ID card.
 - **Deletion Logic**: Confirmed that deleting a session removes it from the list and also clears the corresponding points from the `location_points` table.
 - **Storage Check**: Verified that the database initialization logic correctly identifies external storage paths.
 - **Adaptive UI**: Verified the UI transitions correctly between phone and tablet modes in Compose Previews.

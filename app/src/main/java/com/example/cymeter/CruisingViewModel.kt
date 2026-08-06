@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 
 class CruisingViewModel(
     private val locationDao: LocationDao,
-    private val sessionDao: SessionDao
+    private val sessionDao: SessionDao,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CruisingService.CruisingState())
@@ -28,19 +29,23 @@ class CruisingViewModel(
     val allSessions: StateFlow<List<Session>> = sessionDao.getAllSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val speedThresholdKmh: StateFlow<Float> = settingsRepository.speedThresholdFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_SPEED_THRESHOLD_KMH)
+
     init {
         loadLastSession()
     }
 
     private fun loadLastSession() {
         viewModelScope.launch {
-            val lastPoint = locationDao.getLatestPoint()
-            if (lastPoint != null && _uiState.value.sessionId == 0L) {
+            val lastSession = sessionDao.getLatestSession()
+            if (lastSession != null && _uiState.value.sessionId == 0L) {
                 _uiState.value = CruisingService.CruisingState(
-                    sessionId = lastPoint.sessionId,
-                    avgCruisingSpeed = lastPoint.avgSpeed,
-                    distanceKm = lastPoint.totalDistanceMeters / 1000f,
-                    movingTimeMillis = lastPoint.movingTimeMillis,
+                    sessionId = lastSession.id,
+                    avgCruisingSpeed = lastSession.avgSpeed,
+                    maxSpeed = lastSession.maxSpeed,
+                    distanceKm = lastSession.totalDistance / 1000f,
+                    movingTimeMillis = lastSession.totalMovingTime,
                     currentSpeed = 0f,
                     isMoving = false
                 )
@@ -76,6 +81,7 @@ class CruisingViewModel(
                 _uiState.value = CruisingService.CruisingState(
                     sessionId = session.id,
                     avgCruisingSpeed = session.avgSpeed,
+                    maxSpeed = session.maxSpeed,
                     distanceKm = session.totalDistance / 1000f,
                     movingTimeMillis = session.totalMovingTime,
                     isViewingHistory = true,
@@ -107,6 +113,12 @@ class CruisingViewModel(
             if (_uiState.value.sessionId == session.id) {
                 _uiState.value = CruisingService.CruisingState()
             }
+        }
+    }
+
+    fun updateSpeedThreshold(thresholdKmh: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateSpeedThreshold(thresholdKmh)
         }
     }
 }

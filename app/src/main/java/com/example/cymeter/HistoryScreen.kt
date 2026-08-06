@@ -109,6 +109,10 @@ fun SessionItem(
                         label = "Avg Speed",
                         value = String.format(Locale.getDefault(), "%.1f km/h", session.avgSpeed * 3.6f)
                     )
+                    InfoChip(
+                        label = "Max Speed",
+                        value = String.format(Locale.getDefault(), "%.1f km/h", session.maxSpeed * 3.6f)
+                    )
                 }
             }
             IconButton(onClick = onDelete) {
