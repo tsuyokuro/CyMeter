@@ -93,7 +93,6 @@ class CruisingService : Service() {
         val currentSpeed: Float = 0f,
         val avgCruisingSpeed: Float = 0f,
         val movingTimeMillis: Long = 0L,
-        val accelerationMagnitude: Float = 0f,
         val distanceKm: Float = 0.0f,
         val sessionId: Long = 0L,
         val isViewingHistory: Boolean = false
@@ -278,7 +277,6 @@ class CruisingService : Service() {
                 currentSpeed = _cruisingData.value.currentSpeed,
                 avgCruisingSpeed = 0f,
                 movingTimeMillis = 0L,
-                accelerationMagnitude = _cruisingData.value.accelerationMagnitude,
                 distanceKm = 0.0f,
                 sessionId = currentSessionId
             )
@@ -317,8 +315,7 @@ class CruisingService : Service() {
             }
 
             _cruisingData.value = _cruisingData.value.copy(
-                isMoving = isMovingInternal,
-                accelerationMagnitude = magnitude
+                isMoving = isMovingInternal
             )
         }
     }

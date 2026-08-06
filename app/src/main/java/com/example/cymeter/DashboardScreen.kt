@@ -142,15 +142,6 @@ fun DashboardContent(
                         color = statusColor
                     )
                 }
-                item {
-                    StatCard(
-                        title = "Acceleration (LPF)",
-                        value = "%.2f".format(cruisingData.accelerationMagnitude),
-                        unit = "m/s²",
-                        icon = Icons.AutoMirrored.Rounded.TrendingUp,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
             }
             item {
                 StatCard(
