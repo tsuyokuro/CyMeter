@@ -43,12 +43,13 @@ class CruisingService : Service() {
 
         private const val SPEED_LPF_ALPHA = 0.5f
 
-        private const val SPEED_THRESHOLD_MPS = 5.0f / 3.6f // 5.0 km/h
-
         private const val DISTANCE_TIME_INTERVAL_MS = 10000L
     }
 
     private val binder = LocalBinder()
+
+    private lateinit var settingsRepository: SettingsRepository
+    private var speedThresholdMps: Float = 5.0f / 3.6f
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -75,6 +76,7 @@ class CruisingService : Service() {
     private var isMovingInternal: Boolean = false
     private var totalSpeedSum: Double = 0.0
     private var speedSamplesCount: Long = 0
+    private var maxSpeedInternal: Float = 0.0f
 
     private var lpfSpeed = 0.0f
 
@@ -92,6 +94,7 @@ class CruisingService : Service() {
         val isMoving: Boolean = false,
         val currentSpeed: Float = 0f,
         val avgCruisingSpeed: Float = 0f,
+        val maxSpeed: Float = 0f,
         val movingTimeMillis: Long = 0L,
         val distanceKm: Float = 0.0f,
         val sessionId: Long = 0L,
@@ -104,6 +107,12 @@ class CruisingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        settingsRepository = SettingsRepository(this)
+        serviceScope.launch {
+            settingsRepository.speedThresholdFlow.collect { thresholdKmh ->
+                speedThresholdMps = thresholdKmh / 3.6f
+            }
+        }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         linearAccelerationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
@@ -205,6 +214,7 @@ class CruisingService : Service() {
 
         val currentTime = System.currentTimeMillis()
         val avgSpeed = _cruisingData.value.avgCruisingSpeed
+        val maxSpeed = maxSpeedInternal
 
         kotlinx.coroutines.runBlocking {
             if (lastDistanceLocation != null) {
@@ -226,6 +236,7 @@ class CruisingService : Service() {
                 database.sessionDao().update(session.copy(
                     endTime = currentTime,
                     avgSpeed = avgSpeed,
+                    maxSpeed = maxSpeed,
                     totalDistance = totalDistanceMeters,
                     totalMovingTime = totalMovingTimeMillis
                 ))
@@ -235,6 +246,7 @@ class CruisingService : Service() {
 
     fun resetData() {
         val lastAvgSpeed = _cruisingData.value.avgCruisingSpeed
+        val lastMaxSpeed = maxSpeedInternal
         val lastTotalDistance = totalDistanceMeters
         val lastTotalMovingTime = totalMovingTimeMillis
         val lastCurrentSessionId = currentSessionId
@@ -242,6 +254,7 @@ class CruisingService : Service() {
 
         totalSpeedSum = 0.0
         speedSamplesCount = 0
+        maxSpeedInternal = 0.0f
         totalMovingTimeMillis = 0
         lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
         totalDistanceMeters = 0.0f
@@ -257,6 +270,7 @@ class CruisingService : Service() {
                         database.sessionDao().update(session.copy(
                             endTime = endTime,
                             avgSpeed = lastAvgSpeed,
+                            maxSpeed = lastMaxSpeed,
                             totalDistance = lastTotalDistance,
                             totalMovingTime = lastTotalMovingTime
                         ))
@@ -276,6 +290,7 @@ class CruisingService : Service() {
                 isMoving = isMovingInternal,
                 currentSpeed = _cruisingData.value.currentSpeed,
                 avgCruisingSpeed = 0f,
+                maxSpeed = 0f,
                 movingTimeMillis = 0L,
                 distanceKm = 0.0f,
                 sessionId = currentSessionId
@@ -327,8 +342,12 @@ class CruisingService : Service() {
         val speed = lpfSpeed
         val currentTime = System.currentTimeMillis()
 
+        if (speed > maxSpeedInternal) {
+            maxSpeedInternal = speed
+        }
+
         if (isMovingInternal) {
-            if (speed > SPEED_THRESHOLD_MPS) {
+            if (speed > speedThresholdMps) {
                 totalSpeedSum += speed
                 speedSamplesCount++
             }
@@ -342,6 +361,7 @@ class CruisingService : Service() {
         }
 
         val avgSpeed = if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
+        val maxSpeed = maxSpeedInternal
 
         totalDistanceMeters += calcDistance(lastDistanceLocation, location)
         lastDistanceLocation = location
@@ -349,7 +369,7 @@ class CruisingService : Service() {
         if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
             //val distance = calcDistance(lastLogLocation, location)
             //if (distance > 1.0f) {
-                writeLocationLog(currentTime, avgSpeed, totalDistanceMeters, location)
+                writeLocationLog(currentTime, avgSpeed, maxSpeed, totalDistanceMeters, location)
                 lastSaveLocation = location
                 lastSaveTime = currentTime
             //}
@@ -358,12 +378,13 @@ class CruisingService : Service() {
         _cruisingData.value = _cruisingData.value.copy(
             currentSpeed = speed,
             avgCruisingSpeed = avgSpeed,
+            maxSpeed = maxSpeed,
             movingTimeMillis = totalMovingTimeMillis,
             distanceKm = totalDistanceMeters / 1000f
         )
     }
 
-    private fun writeLocationLog(timestamp: Long, avgSpeed: Float, totalDistanceMeters: Float, location: Location) {
+    private fun writeLocationLog(timestamp: Long, avgSpeed: Float, maxSpeed: Float, totalDistanceMeters: Float, location: Location) {
         val point = LocationPoint(
             sessionId = currentSessionId,
             latitude = location.latitude,
@@ -382,6 +403,7 @@ class CruisingService : Service() {
             if (session != null) {
                 val updatedSession = session.copy(
                     avgSpeed = avgSpeed,
+                    maxSpeed = maxSpeed,
                     totalDistance = totalDistanceMeters,
                     totalMovingTime = totalMovingTimeMillis
                 )
