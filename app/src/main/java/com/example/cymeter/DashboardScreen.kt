@@ -25,6 +25,7 @@ fun DashboardScreen(
     onStartService: () -> Unit,
     onStopService: () -> Unit,
     onResetData: () -> Unit,
+    onViewCharts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val cruisingData : CruisingService.CruisingState
@@ -41,6 +42,7 @@ fun DashboardScreen(
         onResetData,
         onExitHistory = { viewModel.exitHistoryMode() },
         onOpenSettings = { showSettings = true },
+        onViewCharts = onViewCharts,
         modifier
     )
     
@@ -65,6 +67,7 @@ fun DashboardContent(
     onResetData: () -> Unit,
     onExitHistory: () -> Unit,
     onOpenSettings: () -> Unit,
+    onViewCharts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -83,8 +86,13 @@ fun DashboardContent(
                 fontWeight = FontWeight.Bold
             )
 
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+            Row {
+                IconButton(onClick = onViewCharts) {
+                    Icon(Icons.Rounded.BarChart, contentDescription = "View Charts")
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+                }
             }
         }
 
@@ -367,7 +375,8 @@ fun DashboardPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onViewCharts = {}
         )
     }
 }
@@ -383,7 +392,8 @@ fun DashboardTabletPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onViewCharts = {}
         )
     }
 }

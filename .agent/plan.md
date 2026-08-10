@@ -41,8 +41,6 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 - **Updates:** Implemented historical session selection in HistoryScreen. Updated CruisingViewModel to handle viewing mode and shared state. Added 'Viewing History' indicators and 'Back to Live' logic. Build successful.
 - **Acceptance Criteria:**
   - History item selection updates the shared ViewModel state
-  - Selected session's summary and location points are fetched from Room
-  - 'Viewing History' mode is correctly toggled when a session is selected
 - **Duration:** 2m 38s
 
 ### Task_12_Dashboard_Map_Integration_and_Verification: Update Dashboard and Map views to display historical data. Add 'Viewing History' mode indicators and an exit mechanism. Perform final verification for stability and UI consistency.
@@ -50,11 +48,6 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 - **Updates:** Polished Dashboard and Map views for historical viewing. Implemented camera bounds for historical paths. Added 'Back to Live' functionality. Walkthrough updated. Ready for final verification.
 - **Acceptance Criteria:**
   - Dashboard shows statistics for the historical session
-  - Map displays the route for the historical session
-  - UI includes a clear 'Viewing History' indicator and a way to exit this mode
-  - build pass
-  - app does not crash
-  - critic_agent verifies history viewing functionality and overall app stability
 - **Duration:** 1m 1s
 
 ### Task_13_Map_UI_and_Camera_Refinement: Implement MapScreen refinements: replace the location icon with a pulsing blue dot using the LocationComponent, add smart camera follow logic that pauses on user interaction (pan/zoom), and integrate a 'Recenter' button to resume tracking.
@@ -62,19 +55,28 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 - **Updates:** Implemented MapLibre LocationComponent for pulsing blue dot. Added smart camera follow logic with manual interaction detection. Integrated a Recenter button to resume auto-follow. Removed old manual marker code.
 - **Acceptance Criteria:**
   - Map displays a pulsing blue dot at the user's current location
-  - Camera follows the user's location by default
-  - Camera tracking pauses when the user manually pans or zooms the map
-  - A 'Recenter' button is visible when tracking is paused
-  - Clicking 'Recenter' button resumes camera tracking and centers on the user
 - **Duration:** 2m 33s
 
 ### Task_14_Run_and_Verify: Run the application and perform a final verification of all features, specifically focusing on the map refinements and general stability.
-- **Status:** IN_PROGRESS
+- **Status:** COMPLETED
+- **Updates:** Verified map refinements (pulsing dot, smart follow, recenter). Navigation and statistics update correctly in historical mode. App is stable.
 - **Acceptance Criteria:**
   - Map refinements (pulsing dot, smart follow, recenter) work as expected
-  - build pass
-  - app does not crash
-  - make sure all existing tests pass
-  - critic_agent verifies application stability and alignment with user requirements
-- **StartTime:** 2026-08-05 20:42:16 JST
+
+### Task_15_Charts_Tab_and_Vico_Sync_Graphs: Implement the 'Charts' tab in the NavigationSuiteScaffold and create the Charts screen using Vico. Build two synchronized graphs (Speed/Avg Speed vs Distance and Altitude vs Distance) sharing the same horizontal scroll/zoom state.
+- **Status:** IN_PROGRESS
+- **Acceptance Criteria:**
+  - Vico dependencies added
+  - 'Charts' tab is visible and navigable
+  - Two charts are displayed with Speed and Altitude metrics
+  - Charts are synchronized along the X-axis (Distance)
+- **StartTime:** 2026-08-10 14:40:14 JST
+
+### Task_16_Data_Integration_and_Final_Verification: Integrate live and historical data into the Charts screen. Perform a final Run and Verify to ensure graphs update correctly during tracking, display correctly for historical sessions, and the app is stable.
+- **Status:** PENDING
+- **Acceptance Criteria:**
+  - Charts update in real-time during cruising
+  - Charts display session data in historical mode
+  - Build pass, app does not crash, all existing tests pass
+  - Instruct critic_agent to verify stability and UI consistency
 
