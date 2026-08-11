@@ -148,7 +148,10 @@ fun ChartsContent(
                         ),
                         bottomAxis = HorizontalAxis.rememberBottom(
                             title = "Distance (km)",
-                            titleComponent = axisTitleComponent
+                            titleComponent = axisTitleComponent,
+                            itemPlacer = HorizontalAxis.ItemPlacer.aligned(
+                                spacing = { 5000 },
+                            ),
                         )
                     ),
                     modelProducer = speedModelProducer,
@@ -198,7 +201,10 @@ fun ChartsContent(
                         ),
                         bottomAxis = HorizontalAxis.rememberBottom(
                             title = "Distance (km)",
-                            titleComponent = axisTitleComponent
+                            titleComponent = axisTitleComponent,
+                            itemPlacer = HorizontalAxis.ItemPlacer.aligned(
+                                spacing = { 5000 },
+                            ),
                         )
                     ),
                     modelProducer = altitudeModelProducer,

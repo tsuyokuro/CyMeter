@@ -60,6 +60,10 @@ class CruisingViewModel(
         }
     }
 
+    private fun toChartsDistance(v: Float) : Float {
+        return round(v / 1000f * 10000f) / 10000f
+    }
+
     private fun updateCharts(points: List<LocationPoint>) {
         viewModelScope.launch(Dispatchers.Default) {
             if (points.isEmpty()) {
@@ -72,24 +76,23 @@ class CruisingViewModel(
                 return@launch
             }
 
-            // Vico 2.0 requires unique and strictly increasing X values.
-            // Duplicate X values (e.g., when the user is stopped) will cause a crash.
-            // We also downsample if there are too many points to improve performance.
             val processedPoints = points
-                .distinctBy { round(it.totalDistanceMeters / 1000f * 10000f) / 10000f }
+                // totalDistanceMetersが同じアイテムを削除
+                .distinctBy { toChartsDistance(it.totalDistanceMeters) }
                 .sortedBy { it.totalDistanceMeters }
                 .let { list ->
                     if (list.size > 500) {
+                        // 500sampleを超える場合は、500に減らす
                         val step = list.size / 500.0
                         (0 until 500).map { i ->
                             list[(i * step).toInt().coerceAtMost(list.lastIndex)]
-                        }.distinctBy { round(it.totalDistanceMeters / 1000f * 10000f) / 10000f }
+                        }.distinctBy { toChartsDistance(it.totalDistanceMeters) }
                     } else {
                         list
                     }
                 }
 
-            val distances = processedPoints.map { round(it.totalDistanceMeters / 1000f * 10000f) / 10000f }
+            val distances = processedPoints.map { toChartsDistance(it.totalDistanceMeters) }
             val speeds = processedPoints.map { it.speed * 3.6f }
             val avgSpeeds = processedPoints.map { it.avgSpeed * 3.6f }
             val altitudes = processedPoints.map { it.altitude.toFloat() }
