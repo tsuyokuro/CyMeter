@@ -14,21 +14,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.cymeter.CruisingViewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.Zoom
+import com.patrykandpatrick.vico.compose.cartesian.axis.BaseAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.Fill
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.compose.common.fill
-import com.patrykandpatrick.vico.core.cartesian.Zoom
-import com.patrykandpatrick.vico.core.cartesian.axis.BaseAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
+import androidx.compose.ui.text.TextStyle
 
 @Composable
 fun ChartsScreen(
@@ -110,8 +109,10 @@ fun ChartsContent(
     val zoomState = rememberVicoZoomState(initialZoom = Zoom.Content)
 
     val axisTitleComponent = rememberTextComponent(
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textSize = MaterialTheme.typography.labelSmall.fontSize
+        style = TextStyle(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = MaterialTheme.typography.labelSmall.fontSize
+        )
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -134,20 +135,25 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.primary))
-                                ),
+                                    fill = LineCartesianLayer.LineFill.single(Fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))),
+                                    areaFill =  LineCartesianLayer.AreaFill.single(
+                                        fill = Fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))
+                                    ),
+                                    interpolator = LineCartesianLayer.Interpolator.catmullRom(),
+                                    ),
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.secondary))
+                                    fill = LineCartesianLayer.LineFill.single(Fill(Color.Red.copy(green = 0.5f))),
+                                    interpolator = LineCartesianLayer.Interpolator.catmullRom(),
                                 )
                             )
                         ),
                         startAxis = VerticalAxis.rememberStart(
-                            title = "Speed",
+                            title = { "Speed" },
                             titleComponent = axisTitleComponent,
-                            size = BaseAxis.Size.Fixed(48f)
+                            size = BaseAxis.Size.Fixed(48.dp)
                         ),
                         bottomAxis = HorizontalAxis.rememberBottom(
-                            title = "Distance (km)",
+                            title = { "Distance (km)" },
                             titleComponent = axisTitleComponent,
                             itemPlacer = HorizontalAxis.ItemPlacer.aligned(
                                 spacing = { 5000 },
@@ -190,17 +196,18 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.tertiary))
+                                    fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.tertiary)),
+                                    interpolator = LineCartesianLayer.Interpolator.catmullRom(),
                                 )
                             )
                         ),
                         startAxis = VerticalAxis.rememberStart(
-                            title = "Altitude",
+                            title = { "Altitude" },
                             titleComponent = axisTitleComponent,
-                            size = BaseAxis.Size.Fixed(48f)
+                            size = BaseAxis.Size.Fixed(48.dp)
                         ),
                         bottomAxis = HorizontalAxis.rememberBottom(
-                            title = "Distance (km)",
+                            title = { "Distance (km)" },
                             titleComponent = axisTitleComponent,
                             itemPlacer = HorizontalAxis.ItemPlacer.aligned(
                                 spacing = { 5000 },

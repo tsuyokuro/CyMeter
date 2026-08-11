@@ -6,8 +6,8 @@ import com.example.cymeter.db.LocationDao
 import com.example.cymeter.db.LocationPoint
 import com.example.cymeter.db.Session
 import com.example.cymeter.db.SessionDao
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,14 +98,14 @@ class CruisingViewModel(
             val altitudes = processedPoints.map { it.altitude.toFloat() }
 
             speedChartModelProducer.runTransaction {
-                lineSeries {
+                lineModel {
                     series(x = distances, y = speeds)
                     series(x = distances, y = avgSpeeds)
                 }
             }
 
             altitudeChartModelProducer.runTransaction {
-                lineSeries {
+                lineModel {
                     series(x = distances, y = altitudes)
                 }
             }
