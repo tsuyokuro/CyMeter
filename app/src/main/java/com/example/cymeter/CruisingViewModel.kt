@@ -6,6 +6,9 @@ import com.example.cymeter.db.LocationDao
 import com.example.cymeter.db.LocationPoint
 import com.example.cymeter.db.Session
 import com.example.cymeter.db.SessionDao
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.round
 
 class CruisingViewModel(
     private val locationDao: LocationDao,
@@ -26,6 +30,21 @@ class CruisingViewModel(
     private val _uiState = MutableStateFlow(CruisingService.CruisingState())
     val uiState: StateFlow<CruisingService.CruisingState> = _uiState.asStateFlow()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pathPoints: StateFlow<List<LocationPoint>> = _uiState
+        .map { it.sessionId }
+        .flatMapLatest { sessionId ->
+            if (sessionId != 0L) {
+                locationDao.getPointsFlowBySessionId(sessionId)
+            } else {
+                flowOf(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val speedChartModelProducer = CartesianChartModelProducer()
+    val altitudeChartModelProducer = CartesianChartModelProducer()
+
     val allSessions: StateFlow<List<Session>> = sessionDao.getAllSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -34,6 +53,63 @@ class CruisingViewModel(
 
     init {
         loadLastSession()
+        viewModelScope.launch(Dispatchers.Main) {
+            pathPoints.collect { points ->
+                updateCharts(points)
+            }
+        }
+    }
+
+    private fun toChartsDistance(v: Float) : Float {
+        return round(v / 1000f * 10000f) / 10000f
+    }
+
+    private fun updateCharts(points: List<LocationPoint>) {
+        viewModelScope.launch(Dispatchers.Default) {
+            if (points.isEmpty()) {
+                speedChartModelProducer.runTransaction {
+                    /* no series */
+                }
+                altitudeChartModelProducer.runTransaction {
+                    /* no series */
+                }
+                return@launch
+            }
+
+            val processedPoints = points
+                // totalDistanceMetersが同じアイテムを削除
+                .distinctBy { toChartsDistance(it.totalDistanceMeters) }
+                .sortedBy { it.totalDistanceMeters }
+                .let { list ->
+                    if (list.size > 500) {
+                        // 500sampleを超える場合は、500に減らす
+                        val step = list.size / 500.0
+                        (0 until 500).map { i ->
+                            list[(i * step).toInt().coerceAtMost(list.lastIndex)]
+                        }.distinctBy { toChartsDistance(it.totalDistanceMeters) }
+                    } else {
+                        list
+                    }
+                }
+
+            val distances = processedPoints.map { toChartsDistance(it.totalDistanceMeters) }
+            val speeds = processedPoints.map { it.speed * 3.6f }
+            val avgSpeeds = processedPoints.map { it.avgSpeed * 3.6f }
+            val altitudes = processedPoints.map { it.altitude.toFloat() }
+
+            speedChartModelProducer.runTransaction {
+                lineSeries {
+                    series(x = distances, y = speeds)
+                    series(x = distances, y = avgSpeeds)
+                }
+            }
+
+            altitudeChartModelProducer.runTransaction {
+                lineSeries {
+                    series(x = distances, y = altitudes)
+                }
+            }
+        }
     }
 
     private fun loadLastSession() {
@@ -52,18 +128,6 @@ class CruisingViewModel(
             }
         }
     }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val pathPoints: StateFlow<List<LocationPoint>> = _uiState
-        .map { it.sessionId }
-        .flatMapLatest { sessionId ->
-            if (sessionId != 0L) {
-                locationDao.getPointsFlowBySessionId(sessionId)
-            } else {
-                flowOf(emptyList())
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun updateState(state: CruisingService.CruisingState) {
         // If we are viewing history, we ignore updates from the service

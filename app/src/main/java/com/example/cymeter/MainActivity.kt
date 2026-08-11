@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Map
@@ -52,6 +53,9 @@ data object DashboardRoute : NavKey
 
 @Serializable
 data object MapRoute : NavKey
+
+@Serializable
+data object ChartsRoute : NavKey
 
 @Serializable
 data object HistoryRoute : NavKey
@@ -112,6 +116,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    val onChartsClick = dropUnlessResumed {
+                        if (backStack.lastOrNull() !is ChartsRoute) {
+                            backStack.clear()
+                            backStack.add(ChartsRoute)
+                        }
+                    }
+
                     val onHistoryClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is HistoryRoute) {
                             backStack.clear()
@@ -144,6 +155,12 @@ class MainActivity : ComponentActivity() {
                                 label = { Text("Map") }
                             )
                             item(
+                                selected = backStack.lastOrNull() is ChartsRoute,
+                                onClick = onChartsClick,
+                                icon = { Icon(Icons.Rounded.BarChart, contentDescription = null) },
+                                label = { Text("Charts") }
+                            )
+                            item(
                                 selected = backStack.lastOrNull() is HistoryRoute,
                                 onClick = onHistoryClick,
                                 icon = { Icon(Icons.Rounded.History, contentDescription = null) },
@@ -159,7 +176,7 @@ class MainActivity : ComponentActivity() {
                                 rememberViewModelStoreNavEntryDecorator()
                             ),
                             transitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, HistoryRoute)
+                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -174,7 +191,7 @@ class MainActivity : ComponentActivity() {
                                         ) + fadeOut(animationSpec = tween(300))
                             },
                             popTransitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, HistoryRoute)
+                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -199,11 +216,15 @@ class MainActivity : ComponentActivity() {
                                                 startCruisingService()
                                             },
                                             onStopService = { stopCruisingService() },
-                                            onResetData = { viewModel.resetData(cruisingService) }
+                                            onResetData = { viewModel.resetData(cruisingService) },
+                                            onViewCharts = onChartsClick
                                         )
                                     }
                                     is MapRoute -> NavEntry(key) {
                                         MapScreen(viewModel = viewModel)
+                                    }
+                                    is ChartsRoute -> NavEntry(key) {
+                                        com.example.cymeter.ui.ChartsScreen(viewModel = viewModel)
                                     }
                                     is HistoryRoute -> NavEntry(key) {
                                         HistoryScreen(
