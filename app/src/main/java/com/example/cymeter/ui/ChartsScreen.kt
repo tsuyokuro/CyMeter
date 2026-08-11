@@ -134,10 +134,15 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.primary))
-                                ),
+                                    fill = LineCartesianLayer.LineFill.single(fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))),
+                                    areaFill =  LineCartesianLayer.AreaFill.single(
+                                        fill = fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))
+                                    ),
+                                    pointConnector = LineCartesianLayer.PointConnector.cubic(curvature = 0.5f),
+                                    ),
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.secondary))
+                                    fill = LineCartesianLayer.LineFill.single(fill(Color.Red.copy(green = 0.5f))),
+                                    pointConnector = LineCartesianLayer.PointConnector.cubic(curvature = 0.5f),
                                 )
                             )
                         ),
@@ -190,7 +195,8 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.tertiary))
+                                    fill = LineCartesianLayer.LineFill.single(fill(MaterialTheme.colorScheme.tertiary)),
+                                    pointConnector = LineCartesianLayer.PointConnector.cubic(curvature = 0.9f),
                                 )
                             )
                         ),
