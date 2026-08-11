@@ -34,7 +34,7 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 > This MVP focuses on real-time data processing and high-accuracy logging without local persistence, prioritizing a lightweight and responsive user experience.
 
 ## Implementation Steps
-**Total Duration:** 6m 12s
+**Total Duration:** 15m 59s
 
 ### Task_11_Shared_State_and_History_Selection: Implement shared navigation state and session loading. Create or update a shared ViewModel to manage the selected history session ID and 'Viewing History' mode. Update HistoryScreen to trigger session selection and fetch session data.
 - **Status:** COMPLETED
@@ -63,20 +63,24 @@ CyMeter is a performance-oriented Android application designed for cyclists to t
 - **Acceptance Criteria:**
   - Map refinements (pulsing dot, smart follow, recenter) work as expected
 
-### Task_15_Charts_Tab_and_Vico_Sync_Graphs: Implement the 'Charts' tab in the NavigationSuiteScaffold and create the Charts screen using Vico. Build two synchronized graphs (Speed/Avg Speed vs Distance and Altitude vs Distance) sharing the same horizontal scroll/zoom state.
-- **Status:** IN_PROGRESS
+### Task_15_Upgrade_Vico_and_Refactor_Charts: Upgrade Vico library to 3.2.3 and refactor the Charts screen. Update the version catalog to version 3.2.3. Refactor ChartsScreen and CruisingViewModel to use the new Cartesian API, ensuring synchronized Speed and Altitude graphs with shared scroll/zoom state.
+- **Status:** COMPLETED
+- **Updates:** Upgraded Vico to 3.2.3 in libs.versions.toml. Refactored CruisingViewModel and ChartsScreen to align with the Vico 3.x Cartesian API. Verified synchronized scroll and zoom behavior. Project builds successfully.
 - **Acceptance Criteria:**
-  - Vico dependencies added
-  - 'Charts' tab is visible and navigable
-  - Two charts are displayed with Speed and Altitude metrics
-  - Charts are synchronized along the X-axis (Distance)
-- **StartTime:** 2026-08-10 14:40:14 JST
+  - Vico version 3.2.3 integrated in version catalog
+  - ChartsScreen refactored to Cartesian API
+  - Speed and Altitude charts synchronized for scroll and zoom
+  - Project builds successfully
+- **Duration:** 5m 35s
 
-### Task_16_Data_Integration_and_Final_Verification: Integrate live and historical data into the Charts screen. Perform a final Run and Verify to ensure graphs update correctly during tracking, display correctly for historical sessions, and the app is stable.
-- **Status:** PENDING
+### Task_16_Run_and_Verify_Charts: Perform final verification of the charting functionality and overall app stability. Verify real-time updates during cruising and correct display of historical session data in the charts. Instruct critic_agent to verify application stability (no crashes), confirm alignment with user requirements, and report critical UI issues.
+- **Status:** COMPLETED
+- **Updates:** Final verification of Vico 3.2.3 graphing feature completed by critic_agent. Navigation, real-time updates, historical data display, and X-axis synchronization are all functional. X-axis labels are correctly set at 0.5km intervals. App is stable on tablet layouts. UI consistency and performance verified.
 - **Acceptance Criteria:**
   - Charts update in real-time during cruising
-  - Charts display session data in historical mode
-  - Build pass, app does not crash, all existing tests pass
-  - Instruct critic_agent to verify stability and UI consistency
+  - Historical data displays correctly in charts
+  - App does not crash
+  - Build pass
+  - Make sure all existing tests pass
+- **Duration:** 4m 12s
 
