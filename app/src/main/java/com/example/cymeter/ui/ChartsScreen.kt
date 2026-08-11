@@ -100,6 +100,14 @@ fun ChartsScreen(
     }
 }
 
+object ChartColors {
+    val speedLine = Color(red=0.5f, green = 1.0f, blue=0.0f, alpha = 0.4f)
+    val speedFill = Color(red=0.5f, green = 1.0f, blue=0.0f, alpha = 0.4f)
+    val avgSpeedLine = Color(red=1.0f, green = 0.5f, blue=0.0f, alpha = 0.5f)
+    val altitudeLine = Color(red=0.0f, green = 0.5f, blue=1.0f, alpha = 0.3f)
+    val altitudeFill = Color(red=0.0f, green = 0.5f, blue=1.0f, alpha = 0.3f)
+}
+
 @Composable
 fun ChartsContent(
     speedModelProducer: CartesianChartModelProducer,
@@ -135,14 +143,14 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(Fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))),
+                                    fill = LineCartesianLayer.LineFill.single(Fill(ChartColors.speedLine)),
                                     areaFill =  LineCartesianLayer.AreaFill.single(
-                                        fill = Fill(Color.Green.copy(red = 0.5f, alpha = 0.4f))
+                                        fill = Fill(ChartColors.speedFill)
                                     ),
                                     interpolator = LineCartesianLayer.Interpolator.catmullRom(),
-                                    ),
+                                ),
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(Fill(Color.Red.copy(green = 0.5f))),
+                                    fill = LineCartesianLayer.LineFill.single(Fill(ChartColors.avgSpeedLine)),
                                     interpolator = LineCartesianLayer.Interpolator.catmullRom(),
                                 )
                             )
@@ -196,7 +204,10 @@ fun ChartsContent(
                         rememberLineCartesianLayer(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
-                                    fill = LineCartesianLayer.LineFill.single(Fill(MaterialTheme.colorScheme.tertiary)),
+                                    fill = LineCartesianLayer.LineFill.single(Fill(ChartColors.altitudeLine)),
+                                    areaFill =  LineCartesianLayer.AreaFill.single(
+                                        fill = Fill(ChartColors.altitudeFill)
+                                    ),
                                     interpolator = LineCartesianLayer.Interpolator.catmullRom(),
                                 )
                             )
