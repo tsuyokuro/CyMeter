@@ -123,6 +123,9 @@ fun ChartsContent(
         )
     )
 
+    val marker1 = rememberMarker()
+    val marker2 = rememberMarker()
+
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         // Speed Chart
         Card(
@@ -155,6 +158,7 @@ fun ChartsContent(
                                 )
                             )
                         ),
+                        marker = marker1,
                         startAxis = VerticalAxis.rememberStart(
                             title = { "Speed" },
                             titleComponent = axisTitleComponent,
@@ -212,6 +216,7 @@ fun ChartsContent(
                                 )
                             )
                         ),
+                        marker = marker2,
                         startAxis = VerticalAxis.rememberStart(
                             title = { "Altitude" },
                             titleComponent = axisTitleComponent,
