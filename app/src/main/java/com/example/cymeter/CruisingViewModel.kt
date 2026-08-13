@@ -60,8 +60,30 @@ class CruisingViewModel(
         }
     }
 
+    private val _selectedLocationPoint = MutableStateFlow<LocationPoint?>(null)
+    val selectedLocationPoint: StateFlow<LocationPoint?> = _selectedLocationPoint.asStateFlow()
+    private var isUserSelected = false
+
     private fun toChartsDistance(v: Float) : Float {
         return round(v / 1000f * 10000f) / 10000f
+    }
+
+    fun selectPointByX(x: Double) {
+        val points = pathPoints.value
+        if (points.isEmpty()) return
+
+        isUserSelected = true
+        // Find the point with the closest totalDistanceMeters (converted to km)
+        val targetDistanceKm = x.toFloat()
+        val closestPoint = points.minByOrNull { 
+            kotlin.math.abs(toChartsDistance(it.totalDistanceMeters) - targetDistanceKm)
+        }
+        _selectedLocationPoint.value = closestPoint
+    }
+
+    fun clearSelectedPoint() {
+        isUserSelected = false
+        _selectedLocationPoint.value = null
     }
 
     private fun updateCharts(points: List<LocationPoint>) {
@@ -109,6 +131,10 @@ class CruisingViewModel(
                     series(x = distances, y = altitudes)
                 }
             }
+
+            if (!isUserSelected && processedPoints.isNotEmpty()) {
+                _selectedLocationPoint.value = processedPoints.last()
+            }
         }
     }
 
@@ -139,6 +165,8 @@ class CruisingViewModel(
     }
 
     fun selectHistoricalSession(sessionId: Long) {
+        isUserSelected = false
+        _selectedLocationPoint.value = null
         viewModelScope.launch {
             val session = sessionDao.getSessionById(sessionId)
             if (session != null) {
@@ -161,6 +189,8 @@ class CruisingViewModel(
     }
 
     fun resetData(cruisingService: CruisingService?) {
+        isUserSelected = false
+        _selectedLocationPoint.value = null
         // Reset the service if it's running
         cruisingService?.resetData()
         // Reset the local state
