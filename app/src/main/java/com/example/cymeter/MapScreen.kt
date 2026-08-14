@@ -270,7 +270,7 @@ private fun setupStyle(style: Style, primaryColor: Color) {
                     PropertyFactory.textColor(android.graphics.Color.BLACK),
                     PropertyFactory.textHaloColor(android.graphics.Color.WHITE),
                     PropertyFactory.textHaloWidth(2f),
-                    PropertyFactory.textOffset(arrayOf(0f, -1.2f)),
+                    PropertyFactory.textOffset(arrayOf(0f, 0f)),
                     PropertyFactory.textAllowOverlap(true),
                     PropertyFactory.textIgnorePlacement(true)
                 )
