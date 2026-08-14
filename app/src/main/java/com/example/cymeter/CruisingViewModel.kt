@@ -51,6 +51,9 @@ class CruisingViewModel(
     val speedThresholdKmh: StateFlow<Float> = settingsRepository.speedThresholdFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_SPEED_THRESHOLD_KMH)
 
+    val distanceLabelIntervalKm: StateFlow<Float> = settingsRepository.distanceLabelIntervalFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_DISTANCE_LABEL_INTERVAL_KM)
+
     init {
         loadLastSession()
         viewModelScope.launch(Dispatchers.Main) {
@@ -213,6 +216,12 @@ class CruisingViewModel(
     fun updateSpeedThreshold(thresholdKmh: Float) {
         viewModelScope.launch {
             settingsRepository.updateSpeedThreshold(thresholdKmh)
+        }
+    }
+
+    fun updateDistanceLabelInterval(intervalKm: Float) {
+        viewModelScope.launch {
+            settingsRepository.updateDistanceLabelInterval(intervalKm)
         }
     }
 }

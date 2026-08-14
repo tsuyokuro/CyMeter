@@ -60,6 +60,9 @@ data object ChartsRoute : NavKey
 @Serializable
 data object HistoryRoute : NavKey
 
+@Serializable
+data object SettingsRoute : NavKey
+
 class MainActivity : ComponentActivity() {
 
     private var cruisingService by mutableStateOf<CruisingService?>(null)
@@ -127,6 +130,12 @@ class MainActivity : ComponentActivity() {
                         if (backStack.lastOrNull() !is HistoryRoute) {
                             backStack.clear()
                             backStack.add(HistoryRoute)
+                        }
+                    }
+
+                    val onSettingsClick = dropUnlessResumed {
+                        if (backStack.lastOrNull() !is SettingsRoute) {
+                            backStack.add(SettingsRoute)
                         }
                     }
 
@@ -217,7 +226,8 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onStopService = { stopCruisingService() },
                                             onResetData = { viewModel.resetData(cruisingService) },
-                                            onViewCharts = onChartsClick
+                                            onViewCharts = onChartsClick,
+                                            onOpenSettings = onSettingsClick
                                         )
                                     }
                                     is MapRoute -> NavEntry(key) {
@@ -233,6 +243,12 @@ class MainActivity : ComponentActivity() {
                                                 viewModel.selectHistoricalSession(sessionId)
                                                 onDashboardClick()
                                             }
+                                        )
+                                    }
+                                    is SettingsRoute -> NavEntry(key) {
+                                        SettingsScreen(
+                                            viewModel = viewModel,
+                                            onBack = { backStack.removeLastOrNull() }
                                         )
                                     }
                                     else -> error("Unknown route $key")
