@@ -48,12 +48,18 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.GeoJson
 import org.maplibre.spatialk.geojson.LineString
+import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import java.util.Locale
 
 @Composable
 fun MapScreen(
@@ -62,6 +68,7 @@ fun MapScreen(
 ) {
     val pathPoints by viewModel.pathPoints.collectAsState()
     val cruisingData by viewModel.uiState.collectAsState()
+    val distanceLabelInterval by viewModel.distanceLabelIntervalKm.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isAutoFollowEnabled by remember { mutableStateOf(true) }
@@ -119,6 +126,28 @@ fun MapScreen(
         }
     }
 
+    val labelsDataJson = remember(pathPoints, distanceLabelInterval) {
+        val intervalMeters = distanceLabelInterval * 1000f
+        val features = mutableListOf<Feature<Point, JsonObject?>>()
+
+        if (intervalMeters > 0) {
+            var nextThreshold = intervalMeters
+            for (point in pathPoints) {
+                if (point.totalDistanceMeters >= nextThreshold) {
+                    val distanceKm = String.format(Locale.US, "%.1f", nextThreshold / 1000f)
+                    val props = buildJsonObject {
+                        put("label", JsonPrimitive("${distanceKm}km"))
+                    }
+                    val feature = Feature(Point(Position(longitude = point.longitude, latitude = point.latitude)), props)
+                    features.add(feature)
+                    nextThreshold += intervalMeters
+                }
+            }
+        }
+        val collection = FeatureCollection(features)
+        GeoJson.jsonFormat.encodeToString(collection)
+    }
+
     val primaryColor = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(pathPoints, cruisingData.isViewingHistory, isAutoFollowEnabled) {
@@ -159,10 +188,10 @@ fun MapScreen(
                             map.setStyle(styleUri) { style ->
                                 setupStyle(style, primaryColor)
                                 enableLocationComponent(map, style, context)
-                                updateMapData(style, lineDataJson)
+                                updateMapData(style, lineDataJson, labelsDataJson)
                             }
                         } else {
-                            map.style?.let { updateMapData(it, lineDataJson) }
+                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson) }
                         }
                     }
                 }
@@ -229,11 +258,33 @@ private fun setupStyle(style: Style, primaryColor: Color) {
             }
         )
     }
+
+    if (style.getSource("labels-source") == null) {
+        style.addSource(GeoJsonSource("labels-source"))
+        style.addLayer(
+            SymbolLayer("labels-layer", "labels-source").apply {
+                setProperties(
+                    PropertyFactory.textField(get("label")),
+                    PropertyFactory.textFont(arrayOf("Noto Sans Regular")),
+                    PropertyFactory.textSize(16f),
+                    PropertyFactory.textColor(android.graphics.Color.BLACK),
+                    PropertyFactory.textHaloColor(android.graphics.Color.WHITE),
+                    PropertyFactory.textHaloWidth(2f),
+                    PropertyFactory.textOffset(arrayOf(0f, -1.2f)),
+                    PropertyFactory.textAllowOverlap(true),
+                    PropertyFactory.textIgnorePlacement(true)
+                )
+            }
+        )
+    }
 }
 
-private fun updateMapData(style: Style, lineDataJson: String) {
+private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String) {
     val polylineSource = style.getSourceAs<GeoJsonSource>("polyline-source")
     polylineSource?.setGeoJson(lineDataJson)
+
+    val labelsSource = style.getSourceAs<GeoJsonSource>("labels-source")
+    labelsSource?.setGeoJson(labelsDataJson)
 }
 
 @SuppressLint("MissingPermission")
