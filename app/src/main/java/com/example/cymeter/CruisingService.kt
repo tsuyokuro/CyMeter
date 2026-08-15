@@ -346,12 +346,12 @@ class CruisingService : Service() {
             maxSpeedInternal = speed
         }
 
-        if (isMovingInternal) {
-            if (speed > speedThresholdMps) {
-                totalSpeedSum += speed
-                speedSamplesCount++
-            }
+        if (speed > speedThresholdMps) {
+            totalSpeedSum += speed
+            speedSamplesCount++
+        }
 
+        if (isMovingInternal) {
             if (lastMovingTimeUpdate > 0) {
                 totalMovingTimeMillis += (currentTime - lastMovingTimeUpdate)
             }
