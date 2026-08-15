@@ -34,7 +34,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.serialization.encodeToString
+import com.example.cymeter.db.LocationPoint
 import kotlinx.serialization.json.JsonObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -150,25 +150,32 @@ fun MapScreen(
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
+    fun moveViewToAllRoute(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+        val bounds = LatLngBounds.Builder()
+            .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
+            .build()
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+    }
+
+    fun moveViewToLastPoint(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+        val lastPoint = pathPoints.last()
+        val target = LatLng(lastPoint.latitude, lastPoint.longitude)
+        val currentZoom = map.cameraPosition.zoom
+        if (currentZoom < 5.0) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 15.0))
+        } else {
+            map.animateCamera(CameraUpdateFactory.newLatLng(target))
+        }
+    }
+
     LaunchedEffect(pathPoints, cruisingData.isViewingHistory, isAutoFollowEnabled) {
         if (pathPoints.isNotEmpty()) {
             mapView.getMapAsync { map ->
                 if (cruisingData.isViewingHistory) {
-                    // Fit bounds for history
-                    val bounds = LatLngBounds.Builder()
-                        .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
-                        .build()
-                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+                    //moveViewToAllRoute(map, pathPoints)
+                    moveViewToLastPoint(map, pathPoints)
                 } else if (isAutoFollowEnabled) {
-                    // Follow last point for live
-                    val lastPoint = pathPoints.last()
-                    val target = LatLng(lastPoint.latitude, lastPoint.longitude)
-                    val currentZoom = map.cameraPosition.zoom
-                    if (currentZoom < 5.0) {
-                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 15.0))
-                    } else {
-                        map.animateCamera(CameraUpdateFactory.newLatLng(target))
-                    }
+                    moveViewToLastPoint(map, pathPoints)
                 }
             }
         }
@@ -220,20 +227,23 @@ fun MapScreen(
                 }
             }
 
-            if (!isAutoFollowEnabled && !cruisingData.isViewingHistory) {
+            if (!isAutoFollowEnabled) {
                 SmallFloatingActionButton(
                     onClick = {
                         isAutoFollowEnabled = true
-                        mapView.getMapAsync { map ->
-                            pathPoints.lastOrNull()?.let { lastPoint ->
-                                map.animateCamera(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(lastPoint.latitude, lastPoint.longitude),
-                                        15.0
-                                    )
-                                )
-                            }
-                        }
+//                        isAutoFollowEnabledに値を設定することで画面が再構築されて
+//                        LaunchedEffectが実行されることでセンタリングが行われるので
+//                        ここでの設定は上書きされるため、コメントアウトする
+//                        mapView.getMapAsync { map ->
+//                            pathPoints.lastOrNull()?.let { lastPoint ->
+//                                map.animateCamera(
+//                                    CameraUpdateFactory.newLatLngZoom(
+//                                        LatLng(lastPoint.latitude, lastPoint.longitude),
+//                                        15.0
+//                                    )
+//                                )
+//                            }
+//                        }
                     },
                     modifier = Modifier
                         .padding(16.dp)
