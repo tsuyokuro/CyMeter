@@ -73,14 +73,14 @@ fun DashboardContent(
                 fontWeight = FontWeight.Bold
             )
 
-            Row {
-                IconButton(onClick = onViewCharts) {
-                    Icon(Icons.Rounded.BarChart, contentDescription = "View Charts")
-                }
-                IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-                }
-            }
+//            Row {
+//                IconButton(onClick = onViewCharts) {
+//                    Icon(Icons.Rounded.BarChart, contentDescription = "View Charts")
+//                }
+//                IconButton(onClick = onOpenSettings) {
+//                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
+//                }
+//            }
         }
 
         if (cruisingData.isViewingHistory) {

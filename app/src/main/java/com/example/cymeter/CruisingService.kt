@@ -318,6 +318,8 @@ class CruisingService : Service() {
             val magnitude = sqrt(lpfAccelX * lpfAccelX + lpfAccelY * lpfAccelY + lpfAccelZ * lpfAccelZ)
             val currentTime = System.currentTimeMillis()
 
+            val oldIsMoving = isMovingInternal
+
             if (magnitude > STOP_THRESHOLD) {
                 isMovingInternal = true
                 lastBelowThresholdTime = 0L
@@ -329,9 +331,11 @@ class CruisingService : Service() {
                 }
             }
 
-            _cruisingData.value = _cruisingData.value.copy(
-                isMoving = isMovingInternal
-            )
+            if (oldIsMoving != isMovingInternal) {
+                _cruisingData.value = _cruisingData.value.copy(
+                    isMoving = isMovingInternal
+                )
+            }
         }
     }
 
@@ -384,7 +388,13 @@ class CruisingService : Service() {
         )
     }
 
-    private fun writeLocationLog(timestamp: Long, avgSpeed: Float, maxSpeed: Float, totalDistanceMeters: Float, location: Location) {
+    private fun writeLocationLog(
+        timestamp: Long,
+        avgSpeed: Float,
+        maxSpeed: Float,
+        totalDistanceMeters: Float,
+        location: Location) {
+
         val point = LocationPoint(
             sessionId = currentSessionId,
             latitude = location.latitude,
@@ -396,6 +406,7 @@ class CruisingService : Service() {
             movingTimeMillis = totalMovingTimeMillis,
             timestamp = timestamp
         )
+
         serviceScope.launch(Dispatchers.IO) {
             database.locationDao().insert(point)
             
