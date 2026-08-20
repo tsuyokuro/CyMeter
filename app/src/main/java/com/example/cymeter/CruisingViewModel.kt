@@ -2,6 +2,10 @@ package com.example.cymeter
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
+import com.example.cymeter.db.AppDatabase
 import com.example.cymeter.db.LocationDao
 import com.example.cymeter.db.LocationPoint
 import com.example.cymeter.db.Session
@@ -19,6 +23,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import kotlin.math.round
 
 class CruisingViewModel(
@@ -222,6 +229,46 @@ class CruisingViewModel(
     fun updateDistanceLabelInterval(intervalKm: Float) {
         viewModelScope.launch {
             settingsRepository.updateDistanceLabelInterval(intervalKm)
+        }
+    }
+
+    fun exportDatabase(context: Context, contentResolver: ContentResolver, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(context)
+                db.checkpoint()
+                val dbPath = AppDatabase.getDatabasePath(context)
+                val dbFile = File(dbPath)
+
+                contentResolver.openOutputStream(uri)?.use { output ->
+                    FileInputStream(dbFile).use { input ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun importDatabase(context: Context, contentResolver: ContentResolver, uri: Uri, onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                AppDatabase.closeDatabase()
+                val dbPath = AppDatabase.getDatabasePath(context)
+                val dbFile = File(dbPath)
+
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(dbFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                viewModelScope.launch(Dispatchers.Main) {
+                    onComplete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }

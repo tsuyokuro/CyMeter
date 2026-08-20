@@ -7,9 +7,11 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -68,6 +70,24 @@ class MainActivity : ComponentActivity() {
 
     private var cruisingService by mutableStateOf<CruisingService?>(null)
     private var isBound by mutableStateOf(false)
+    private lateinit var viewModel: CruisingViewModel
+
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        uri?.let {
+            viewModel.exportDatabase(applicationContext, contentResolver, it)
+            Toast.makeText(this, "Database exported", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            viewModel.importDatabase(applicationContext, contentResolver, it) {
+                Toast.makeText(this, "Database restored. Restarting...", Toast.LENGTH_LONG).show()
+                finish()
+                startActivity(intent)
+            }
+        }
+    }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -143,6 +163,7 @@ class MainActivity : ComponentActivity() {
                     val viewModel: CruisingViewModel = viewModel {
                         CruisingViewModel(locationDao, sessionDao, settingsRepository)
                     }
+                    this@MainActivity.viewModel = viewModel
 
                     LaunchedEffect(cruisingService) {
                         cruisingService?.cruisingData?.collect { data ->
@@ -255,7 +276,9 @@ class MainActivity : ComponentActivity() {
                                     is SettingsRoute -> NavEntry(key) {
                                         SettingsScreen(
                                             viewModel = viewModel,
-                                            onBack = { backStack.removeLastOrNull() }
+                                            onBack = { backStack.removeLastOrNull() },
+                                            onExportDatabase = { exportLauncher.launch("cymeter_backup.db") },
+                                            onImportDatabase = { importLauncher.launch(arrayOf("*/*")) }
                                         )
                                     }
                                     else -> error("Unknown route $key")

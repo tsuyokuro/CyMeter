@@ -17,10 +17,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun SettingsScreen(
     viewModel: CruisingViewModel,
     onBack: () -> Unit,
+    onExportDatabase: () -> Unit,
+    onImportDatabase: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val speedThreshold by viewModel.speedThresholdKmh.collectAsStateWithLifecycle()
     val distanceLabelInterval by viewModel.distanceLabelIntervalKm.collectAsStateWithLifecycle()
+
+    var showImportConfirmation by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -61,7 +65,46 @@ fun SettingsScreen(
                     onValueSelected = { viewModel.updateDistanceLabelInterval(it) }
                 )
             }
+
+            SettingsSection(title = "Data Management") {
+                Button(
+                    onClick = onExportDatabase,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Backup Database (Export)")
+                }
+                
+                OutlinedButton(
+                    onClick = { showImportConfirmation = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Restore Database (Import)")
+                }
+            }
         }
+    }
+
+    if (showImportConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirmation = false },
+            title = { Text("Restore Database") },
+            text = { Text("This will overwrite all current data. Are you sure you want to proceed?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showImportConfirmation = false
+                        onImportDatabase()
+                    }
+                ) {
+                    Text("Restore")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

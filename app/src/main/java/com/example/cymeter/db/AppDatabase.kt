@@ -11,6 +11,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun sessionDao(): SessionDao
 
+    fun checkpoint() {
+        this.openHelper.writableDatabase.execSQL("PRAGMA checkpoint(FULL)")
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -86,6 +90,21 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        fun getDatabasePath(context: Context): String {
+            val dbName = "cymeter_database"
+            val externalFilesDirs = context.getExternalFilesDirs(null)
+            return if (externalFilesDirs != null && externalFilesDirs.size > 1 && externalFilesDirs[1] != null) {
+                File(externalFilesDirs[1], dbName).absolutePath
+            } else {
+                context.getDatabasePath(dbName).absolutePath
+            }
+        }
+
+        fun closeDatabase() {
+            INSTANCE?.close()
+            INSTANCE = null
         }
     }
 }
