@@ -46,6 +46,7 @@ import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
@@ -148,6 +149,32 @@ fun MapScreen(
         GeoJson.jsonFormat.encodeToString(collection)
     }
 
+    val endpointsDataJson = remember(pathPoints) {
+        val features = mutableListOf<Feature<Point, JsonObject?>>()
+        if (pathPoints.isNotEmpty()) {
+            // Start point (Green)
+            val startPoint = pathPoints.first()
+            features.add(
+                Feature(
+                    Point(Position(longitude = startPoint.longitude, latitude = startPoint.latitude)),
+                    buildJsonObject { put("color", JsonPrimitive("#a0ffa0")) }
+                )
+            )
+            // End point (Red)
+            if (pathPoints.size > 1) {
+                val endPoint = pathPoints.last()
+                features.add(
+                    Feature(
+                        Point(Position(longitude = endPoint.longitude, latitude = endPoint.latitude)),
+                        buildJsonObject { put("color", JsonPrimitive("#ffa0a0")) }
+                    )
+                )
+            }
+        }
+        val collection = FeatureCollection(features)
+        GeoJson.jsonFormat.encodeToString(collection)
+    }
+
     val primaryColor = MaterialTheme.colorScheme.primary
 
     fun moveViewToAllRoute(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
@@ -195,10 +222,10 @@ fun MapScreen(
                             map.setStyle(styleUri) { style ->
                                 setupStyle(style, primaryColor)
                                 enableLocationComponent(map, style, context)
-                                updateMapData(style, lineDataJson, labelsDataJson)
+                                updateMapData(style, lineDataJson, labelsDataJson, endpointsDataJson)
                             }
                         } else {
-                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson) }
+                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson, endpointsDataJson) }
                         }
                     }
                 }
@@ -287,14 +314,31 @@ private fun setupStyle(style: Style, primaryColor: Color) {
             }
         )
     }
+
+    if (style.getSource("endpoints-source") == null) {
+        style.addSource(GeoJsonSource("endpoints-source"))
+        style.addLayer(
+            CircleLayer("endpoints-layer", "endpoints-source").apply {
+                setProperties(
+                    PropertyFactory.circleColor(get("color")),
+                    PropertyFactory.circleRadius(8f),
+                    PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
+                    PropertyFactory.circleStrokeWidth(2f)
+                )
+            }
+        )
+    }
 }
 
-private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String) {
+private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String, endpointsDataJson: String) {
     val polylineSource = style.getSourceAs<GeoJsonSource>("polyline-source")
     polylineSource?.setGeoJson(lineDataJson)
 
     val labelsSource = style.getSourceAs<GeoJsonSource>("labels-source")
     labelsSource?.setGeoJson(labelsDataJson)
+
+    val endpointsSource = style.getSourceAs<GeoJsonSource>("endpoints-source")
+    endpointsSource?.setGeoJson(endpointsDataJson)
 }
 
 @SuppressLint("MissingPermission")
