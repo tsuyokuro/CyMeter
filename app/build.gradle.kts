@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.cymeter"
+    namespace = "io.github.tsuyokuro.cymeter"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.cymeter"
+        applicationId = "io.github.tsuyokuro.cymeter"
         minSdk = 30
         targetSdk = 37
         versionCode = 1
