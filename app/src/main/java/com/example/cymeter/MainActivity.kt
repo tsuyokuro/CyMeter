@@ -41,6 +41,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.rounded.Settings
 import androidx.navigation3.ui.NavDisplay
 import com.example.cymeter.db.AppDatabase
 import com.example.cymeter.ui.theme.CyMeterTheme
@@ -174,6 +175,12 @@ class MainActivity : ComponentActivity() {
                                 onClick = onHistoryClick,
                                 icon = { Icon(Icons.Rounded.History, contentDescription = null) },
                                 label = { Text("History") }
+                            )
+                            item(
+                                selected = backStack.lastOrNull() is SettingsRoute,
+                                onClick = onSettingsClick,
+                                icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
+                                label = { Text("Settings") }
                             )
                         }
                     ) {

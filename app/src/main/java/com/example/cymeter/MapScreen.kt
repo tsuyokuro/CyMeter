@@ -34,7 +34,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.serialization.encodeToString
+import com.example.cymeter.db.LocationPoint
 import kotlinx.serialization.json.JsonObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -46,6 +46,7 @@ import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
@@ -148,27 +149,60 @@ fun MapScreen(
         GeoJson.jsonFormat.encodeToString(collection)
     }
 
+    val endpointsDataJson = remember(pathPoints) {
+        val features = mutableListOf<Feature<Point, JsonObject?>>()
+        if (pathPoints.isNotEmpty()) {
+            // Start point (Green)
+            val startPoint = pathPoints.first()
+            features.add(
+                Feature(
+                    Point(Position(longitude = startPoint.longitude, latitude = startPoint.latitude)),
+                    buildJsonObject { put("color", JsonPrimitive("#a0ffa0")) }
+                )
+            )
+            // End point (Red)
+            if (pathPoints.size > 1) {
+                val endPoint = pathPoints.last()
+                features.add(
+                    Feature(
+                        Point(Position(longitude = endPoint.longitude, latitude = endPoint.latitude)),
+                        buildJsonObject { put("color", JsonPrimitive("#ffa0a0")) }
+                    )
+                )
+            }
+        }
+        val collection = FeatureCollection(features)
+        GeoJson.jsonFormat.encodeToString(collection)
+    }
+
     val primaryColor = MaterialTheme.colorScheme.primary
+
+    fun moveViewToAllRoute(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+        val bounds = LatLngBounds.Builder()
+            .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
+            .build()
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+    }
+
+    fun moveViewToLastPoint(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+        val lastPoint = pathPoints.last()
+        val target = LatLng(lastPoint.latitude, lastPoint.longitude)
+        val currentZoom = map.cameraPosition.zoom
+        if (currentZoom < 5.0) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 15.0))
+        } else {
+            map.animateCamera(CameraUpdateFactory.newLatLng(target))
+        }
+    }
 
     LaunchedEffect(pathPoints, cruisingData.isViewingHistory, isAutoFollowEnabled) {
         if (pathPoints.isNotEmpty()) {
             mapView.getMapAsync { map ->
                 if (cruisingData.isViewingHistory) {
-                    // Fit bounds for history
-                    val bounds = LatLngBounds.Builder()
-                        .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
-                        .build()
-                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+                    //moveViewToAllRoute(map, pathPoints)
+                    moveViewToLastPoint(map, pathPoints)
                 } else if (isAutoFollowEnabled) {
-                    // Follow last point for live
-                    val lastPoint = pathPoints.last()
-                    val target = LatLng(lastPoint.latitude, lastPoint.longitude)
-                    val currentZoom = map.cameraPosition.zoom
-                    if (currentZoom < 5.0) {
-                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 15.0))
-                    } else {
-                        map.animateCamera(CameraUpdateFactory.newLatLng(target))
-                    }
+                    moveViewToLastPoint(map, pathPoints)
                 }
             }
         }
@@ -188,10 +222,10 @@ fun MapScreen(
                             map.setStyle(styleUri) { style ->
                                 setupStyle(style, primaryColor)
                                 enableLocationComponent(map, style, context)
-                                updateMapData(style, lineDataJson, labelsDataJson)
+                                updateMapData(style, lineDataJson, labelsDataJson, endpointsDataJson)
                             }
                         } else {
-                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson) }
+                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson, endpointsDataJson) }
                         }
                     }
                 }
@@ -220,20 +254,23 @@ fun MapScreen(
                 }
             }
 
-            if (!isAutoFollowEnabled && !cruisingData.isViewingHistory) {
+            if (!isAutoFollowEnabled) {
                 SmallFloatingActionButton(
                     onClick = {
                         isAutoFollowEnabled = true
-                        mapView.getMapAsync { map ->
-                            pathPoints.lastOrNull()?.let { lastPoint ->
-                                map.animateCamera(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        LatLng(lastPoint.latitude, lastPoint.longitude),
-                                        15.0
-                                    )
-                                )
-                            }
-                        }
+//                        isAutoFollowEnabledに値を設定することで画面が再構築されて
+//                        LaunchedEffectが実行されることでセンタリングが行われるので
+//                        ここでの設定は上書きされるため、コメントアウトする
+//                        mapView.getMapAsync { map ->
+//                            pathPoints.lastOrNull()?.let { lastPoint ->
+//                                map.animateCamera(
+//                                    CameraUpdateFactory.newLatLngZoom(
+//                                        LatLng(lastPoint.latitude, lastPoint.longitude),
+//                                        15.0
+//                                    )
+//                                )
+//                            }
+//                        }
                     },
                     modifier = Modifier
                         .padding(16.dp)
@@ -270,21 +307,38 @@ private fun setupStyle(style: Style, primaryColor: Color) {
                     PropertyFactory.textColor(android.graphics.Color.BLACK),
                     PropertyFactory.textHaloColor(android.graphics.Color.WHITE),
                     PropertyFactory.textHaloWidth(2f),
-                    PropertyFactory.textOffset(arrayOf(0f, -1.2f)),
+                    PropertyFactory.textOffset(arrayOf(0f, 0f)),
                     PropertyFactory.textAllowOverlap(true),
                     PropertyFactory.textIgnorePlacement(true)
                 )
             }
         )
     }
+
+    if (style.getSource("endpoints-source") == null) {
+        style.addSource(GeoJsonSource("endpoints-source"))
+        style.addLayer(
+            CircleLayer("endpoints-layer", "endpoints-source").apply {
+                setProperties(
+                    PropertyFactory.circleColor(get("color")),
+                    PropertyFactory.circleRadius(8f),
+                    PropertyFactory.circleStrokeColor(android.graphics.Color.WHITE),
+                    PropertyFactory.circleStrokeWidth(2f)
+                )
+            }
+        )
+    }
 }
 
-private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String) {
+private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String, endpointsDataJson: String) {
     val polylineSource = style.getSourceAs<GeoJsonSource>("polyline-source")
     polylineSource?.setGeoJson(lineDataJson)
 
     val labelsSource = style.getSourceAs<GeoJsonSource>("labels-source")
     labelsSource?.setGeoJson(labelsDataJson)
+
+    val endpointsSource = style.getSourceAs<GeoJsonSource>("endpoints-source")
+    endpointsSource?.setGeoJson(endpointsDataJson)
 }
 
 @SuppressLint("MissingPermission")
