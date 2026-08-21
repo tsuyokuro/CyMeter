@@ -1,3 +1,54 @@
 <resources>
     <string name="app_name">CyMeter</string>
+
+    <!-- Dashboard -->
+    <string name="dashboard_title">Cruising Dashboard</string>
+    <string name="dashboard_viewing_history_session">Viewing History Session</string>
+    <string name="dashboard_current_speed">Current Speed</string>
+    <string name="dashboard_avg_speed">Avg Speed</string>
+    <string name="dashboard_max_speed">Max Speed</string>
+    <string name="dashboard_moving_time">Moving Time</string>
+    <string name="dashboard_status">Status</string>
+    <string name="dashboard_total_distance">Total Distance</string>
+    <string name="dashboard_start_tracking">Start Tracking</string>
+    <string name="dashboard_stop_tracking">Stop Tracking</string>
+    <string name="dashboard_reset">Reset</string>
+
+    <!-- History Screen -->
+    <string name="history_screen_title">Cruising History</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_general_tracking_section_title">General Tracking</string>
+    <string name="settings_map_display_section_title">Map Display</string>
+    <string name="settings_data_management_section_title">Data Management</string>
+    <string name="settings_speed_threshold_label">Speed Threshold</string>
+    <string name="settings_speed_threshold_desc">Minimum speed to consider as moving (km/h)</string>
+    <string name="settings_distance_label_interval_label">Distance Label Interval</string>
+    <string name="settings_distance_label_interval_desc">Distance interval for route markers (km)</string>
+    <string name="settings_backup_button_text">Backup Database (Export)</string>
+    <string name="settings_restore_button_text">Restore Database (Import)</string>
+
+    <!-- Charts Screen -->
+    <string name="charts_screen_title">Activity Charts</string>
+    <string name="charts_screen_viewing_history_session">Viewing History Session</string>
+    <string name="charts_screen_back_to_live">Back to Live</string>
+    <string name="charts_screen_no_data_available_msg">No data available. Start tracking to see speed and altitude charts.</string>
+    <!-- Speed chart -->
+    <string name="charts_screen_speed_chart_title">Speed (km/h)</string>
+    <!-- Altitude chart -->
+    <string name="charts_screen_altitude_chart_title">Altitude (m)</string>
+    <string name="history_screen_no_sessions_recorded">No sessions recorded yet.</string>
+    <string name="history_screen_distance_label">Distance</string>
+    <string name="history_screen_avg_speed_label">Avg Speed</string>
+    <string name="history_screen_max_speed_label">Max Speed</string>
+
+    <!-- Common -->
+    <string name="common_database_exported_msg">Database exported</string>
+    <string name="common_database_restored_msg">Database restored. Restarting...</string>
+    <string name="navi_dashboard_item_text">Dashboard</string>
+    <string name="navi_map_item_text">Map</string>
+    <string name="navi_charts_item_text">Charts</string>
+    <string name="navi_history_item_text">History</string>
+    <string name="navi_settings_item_text">Settings</string>
 </resources>

@@ -11,12 +11,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.db.Session
 import java.text.SimpleDateFormat
 import java.util.*
+import io.github.tsuyokuro.cymeter.R
 
 @Composable
 fun HistoryScreen(
@@ -31,7 +33,7 @@ fun HistoryScreen(
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
             TopAppBar(
-                title = { Text("Cruising History") }
+                title = { Text(stringResource(R.string.history_screen_title)) }
             )
         }
     ) { innerPadding ->
@@ -43,7 +45,7 @@ fun HistoryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "No sessions recorded yet.",
+                    stringResource(R.string.history_screen_no_sessions_recorded),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -103,15 +105,15 @@ fun SessionItem(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     InfoChip(
-                        label = "Distance",
+                        label = stringResource(R.string.history_screen_distance_label),
                         value = String.format(Locale.getDefault(), "%.2f km", session.totalDistance / 1000f)
                     )
                     InfoChip(
-                        label = "Avg Speed",
+                        label = stringResource(R.string.history_screen_avg_speed_label),
                         value = String.format(Locale.getDefault(), "%.1f km/h", session.avgSpeed * 3.6f)
                     )
                     InfoChip(
-                        label = "Max Speed",
+                        label = stringResource(R.string.history_screen_max_speed_label),
                         value = String.format(Locale.getDefault(), "%.1f km/h", session.maxSpeed * 3.6f)
                     )
                 }

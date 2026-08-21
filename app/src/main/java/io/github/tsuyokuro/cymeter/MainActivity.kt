@@ -44,6 +44,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.ui.res.stringResource
 import androidx.navigation3.ui.NavDisplay
 import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
@@ -79,14 +80,15 @@ class MainActivity : ComponentActivity() {
     private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         uri?.let {
             viewModel.exportDatabase(applicationContext, contentResolver, it)
-            Toast.makeText(this, "Database exported", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.common_database_exported_msg), Toast.LENGTH_SHORT).show()
         }
     }
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             viewModel.importDatabase(applicationContext, contentResolver, it) {
-                Toast.makeText(this, "Database restored. Restarting...", Toast.LENGTH_LONG).show()
+                Toast.makeText(this,
+                    getString(R.string.common_database_restored_msg), Toast.LENGTH_LONG).show()
                 finish()
                 startActivity(intent)
             }
@@ -181,31 +183,31 @@ class MainActivity : ComponentActivity() {
                                 selected = backStack.lastOrNull() is DashboardRoute,
                                 onClick = onDashboardClick,
                                 icon = { Icon(Icons.Rounded.Dashboard, contentDescription = null) },
-                                label = { Text("Dashboard") }
+                                label = { Text(stringResource(R.string.navi_dashboard_item_text)) }
                             )
                             item(
                                 selected = backStack.lastOrNull() is MapRoute,
                                 onClick = onMapClick,
                                 icon = { Icon(Icons.Rounded.Map, contentDescription = null) },
-                                label = { Text("Map") }
+                                label = { Text(stringResource(R.string.navi_map_item_text)) }
                             )
                             item(
                                 selected = backStack.lastOrNull() is ChartsRoute,
                                 onClick = onChartsClick,
                                 icon = { Icon(Icons.Rounded.BarChart, contentDescription = null) },
-                                label = { Text("Charts") }
+                                label = { Text(stringResource(R.string.navi_charts_item_text)) }
                             )
                             item(
                                 selected = backStack.lastOrNull() is HistoryRoute,
                                 onClick = onHistoryClick,
                                 icon = { Icon(Icons.Rounded.History, contentDescription = null) },
-                                label = { Text("History") }
+                                label = { Text(stringResource(R.string.navi_history_item_text)) }
                             )
                             item(
                                 selected = backStack.lastOrNull() is SettingsRoute,
                                 onClick = onSettingsClick,
                                 icon = { Icon(Icons.Rounded.Settings, contentDescription = null) },
-                                label = { Text("Settings") }
+                                label = { Text(stringResource(R.string.navi_settings_item_text)) }
                             )
                         }
                     ) {
@@ -331,7 +333,9 @@ fun PermissionScreen(
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding).fillMaxSize(),
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.ui.res.stringResource
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.BaseAxis
@@ -37,6 +38,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.Fill
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import androidx.compose.ui.text.TextStyle
+import io.github.tsuyokuro.cymeter.R
 
 @Composable
 fun ChartsScreen(
@@ -54,7 +56,7 @@ fun ChartsScreen(
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            text = "Activity Charts",
+            text = stringResource(R.string.charts_screen_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -74,12 +76,12 @@ fun ChartsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Viewing History Session",
+                        text = stringResource(R.string.charts_screen_viewing_history_session),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     TextButton(onClick = { viewModel.exitHistoryMode() }) {
-                        Text("Back to Live")
+                        Text(stringResource(R.string.charts_screen_back_to_live))
                     }
                 }
             }
@@ -93,7 +95,7 @@ fun ChartsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No data available. Start tracking to see speed and altitude charts.",
+                    text = stringResource(R.string.charts_screen_no_data_available_msg),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 32.dp)
@@ -164,7 +166,7 @@ fun ChartsContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Speed (km/h)",
+                    text = stringResource(R.string.charts_screen_speed_chart_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -227,7 +229,7 @@ fun ChartsContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Altitude (m)",
+                    text = stringResource(R.string.charts_screen_altitude_chart_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 8.dp)
