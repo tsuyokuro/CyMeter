@@ -22,7 +22,6 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.rounded.Place
-import io.github.tsuyokuro.cymeter.formatMovingTime
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.BaseAxis

@@ -1,4 +1,4 @@
-package io.github.tsuyokuro.cymeter
+package io.github.tsuyokuro.cymeter.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.tsuyokuro.cymeter.CruisingService
+import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 
 @Composable

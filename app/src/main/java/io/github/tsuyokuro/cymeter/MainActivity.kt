@@ -49,6 +49,10 @@ import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import io.github.tsuyokuro.cymeter.ui.DashboardScreen
+import io.github.tsuyokuro.cymeter.ui.HistoryScreen
+import io.github.tsuyokuro.cymeter.ui.MapScreen
+import io.github.tsuyokuro.cymeter.ui.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
