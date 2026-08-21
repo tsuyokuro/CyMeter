@@ -1,6 +1,7 @@
-package io.github.tsuyokuro.cymeter
+package io.github.tsuyokuro.cymeter.ui
 
 import android.annotation.SuppressLint
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.db.LocationPoint
 import kotlinx.serialization.json.JsonObject
 import org.maplibre.android.MapLibre
@@ -342,7 +344,7 @@ private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: St
 }
 
 @SuppressLint("MissingPermission")
-private fun enableLocationComponent(map: MapLibreMap, style: Style, context: android.content.Context) {
+private fun enableLocationComponent(map: MapLibreMap, style: Style, context: Context) {
     val locationComponentOptions = LocationComponentOptions.builder(context)
         .pulseEnabled(false) // 現在位置アイコンのアニメーション
         .build()
