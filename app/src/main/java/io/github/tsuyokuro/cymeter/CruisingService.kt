@@ -3,6 +3,7 @@ package io.github.tsuyokuro.cymeter
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.hardware.Sensor
@@ -92,6 +93,7 @@ class CruisingService : Service() {
 
     data class CruisingState(
         val isMoving: Boolean = false,
+        val isTracking: Boolean = false,
         val currentSpeed: Float = 0f,
         val avgCruisingSpeed: Float = 0f,
         val maxSpeed: Float = 0f,
@@ -153,10 +155,19 @@ class CruisingService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
 
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("CyMeter Cruising")
             .setContentText("Tracking speed and acceleration")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()
 
@@ -168,6 +179,7 @@ class CruisingService : Service() {
     private fun startTracking() {
         if (isTracking) return
         isTracking = true
+        _cruisingData.value = _cruisingData.value.copy(isTracking = true)
 
         serviceScope.launch {
             val startTime = System.currentTimeMillis()
@@ -208,6 +220,7 @@ class CruisingService : Service() {
     private fun stopTracking() {
         if (!isTracking) return
         isTracking = false
+        _cruisingData.value = _cruisingData.value.copy(isTracking = false)
 
         fusedLocationClient.removeLocationUpdates(locationCallback)
         sensorManager.unregisterListener(linearAccelerationListener)
@@ -288,6 +301,7 @@ class CruisingService : Service() {
 
             _cruisingData.value = CruisingState(
                 isMoving = isMovingInternal,
+                isTracking = isTracking,
                 currentSpeed = _cruisingData.value.currentSpeed,
                 avgCruisingSpeed = 0f,
                 maxSpeed = 0f,

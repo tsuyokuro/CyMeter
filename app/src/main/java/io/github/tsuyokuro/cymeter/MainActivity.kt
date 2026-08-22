@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -55,6 +55,7 @@ import io.github.tsuyokuro.cymeter.ui.HistoryScreen
 import io.github.tsuyokuro.cymeter.ui.MapScreen
 import io.github.tsuyokuro.cymeter.ui.SettingsScreen
 import kotlinx.serialization.Serializable
+import androidx.lifecycle.viewmodel.viewModelFactory
 
 @Serializable
 data object DashboardRoute : NavKey
@@ -75,7 +76,19 @@ class MainActivity : ComponentActivity() {
 
     private var cruisingService by mutableStateOf<CruisingService?>(null)
     private var isBound by mutableStateOf(false)
-    private lateinit var viewModel: CruisingViewModel
+
+    private val db by lazy { AppDatabase.getDatabase(applicationContext) }
+    private val locationDao by lazy { db.locationDao() }
+    private val sessionDao by lazy { db.sessionDao() }
+    private val settingsRepository by lazy { SettingsRepository(applicationContext) }
+
+    private val viewModel: CruisingViewModel by viewModels {
+        viewModelFactory {
+            addInitializer(CruisingViewModel::class) {
+                CruisingViewModel(locationDao, sessionDao, settingsRepository)
+            }
+        }
+    }
 
     private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         uri?.let {
@@ -98,8 +111,11 @@ class MainActivity : ComponentActivity() {
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as CruisingService.LocalBinder
-            cruisingService = binder.getService()
+            val instance = binder.getService()
+            cruisingService = instance
             isBound = true
+            // Immediately sync tracking state from service
+            viewModel.updateState(instance.cruisingData.value)
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -112,6 +128,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Attempt to bind to the service if it's already running
+        // The viewModel is already initialized via 'by viewModels'
+        val intent = Intent(this, CruisingService::class.java)
+        bindService(intent, connection, 0) // Use 0 to not start it if not running
+
         setContent {
             CyMeterTheme {
                 val permissionsState = rememberMultiplePermissionsState(
@@ -127,10 +149,6 @@ class MainActivity : ComponentActivity() {
 
                 if (permissionsState.allPermissionsGranted) {
                     val backStack = remember { mutableStateListOf<Any>(DashboardRoute) }
-                    val db = remember { AppDatabase.getDatabase(applicationContext) }
-                    val locationDao = remember { db.locationDao() }
-                    val sessionDao = remember { db.sessionDao() }
-                    val settingsRepository = remember { SettingsRepository(applicationContext) }
 
                     val onDashboardClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is DashboardRoute) {
@@ -165,11 +183,6 @@ class MainActivity : ComponentActivity() {
                             backStack.add(SettingsRoute)
                         }
                     }
-
-                    val viewModel: CruisingViewModel = viewModel {
-                        CruisingViewModel(locationDao, sessionDao, settingsRepository)
-                    }
-                    this@MainActivity.viewModel = viewModel
 
                     LaunchedEffect(cruisingService) {
                         cruisingService?.cruisingData?.collect { data ->
@@ -251,9 +264,10 @@ class MainActivity : ComponentActivity() {
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {
+                                        val cruisingState by viewModel.uiState.collectAsState()
                                         DashboardScreen(
                                             viewModel = viewModel,
-                                            isServiceRunning = isBound,
+                                            isServiceRunning = cruisingState.isTracking,
                                             onStartService = {
                                                 viewModel.exitHistoryMode()
                                                 startCruisingService()
@@ -302,12 +316,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startCruisingService() {
+        viewModel.setTracking(true)
         val intent = Intent(this, CruisingService::class.java)
         startForegroundService(intent)
         bindService(intent, connection, BIND_AUTO_CREATE)
     }
 
     private fun stopCruisingService() {
+        viewModel.setTracking(false)
         if (isBound) {
             unbindService(connection)
             isBound = false

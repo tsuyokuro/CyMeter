@@ -174,6 +174,10 @@ class CruisingViewModel(
         }
     }
 
+    fun setTracking(isTracking: Boolean) {
+        _uiState.value = _uiState.value.copy(isTracking = isTracking)
+    }
+
     fun selectHistoricalSession(sessionId: Long) {
         isUserSelected = false
         _selectedLocationPoint.value = null
@@ -201,10 +205,11 @@ class CruisingViewModel(
     fun resetData(cruisingService: CruisingService?) {
         isUserSelected = false
         _selectedLocationPoint.value = null
+        val currentTracking = _uiState.value.isTracking
         // Reset the service if it's running
         cruisingService?.resetData()
         // Reset the local state
-        _uiState.value = CruisingService.CruisingState()
+        _uiState.value = CruisingService.CruisingState(isTracking = currentTracking)
     }
 
     fun deleteSession(session: Session) {
