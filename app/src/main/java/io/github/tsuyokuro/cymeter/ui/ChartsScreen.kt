@@ -126,6 +126,10 @@ object ChartColors {
     val altitudeFill = Color(red=0.0f, green = 0.5f, blue=1.0f, alpha = 0.3f)
 }
 
+object ChartDimension {
+    val hostCardHeight = 200.0.dp
+}
+
 @Composable
 fun ChartsContent(
     speedModelProducer: CartesianChartModelProducer,
@@ -165,12 +169,21 @@ fun ChartsContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.charts_screen_speed_chart_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Row() {
+                    Text(
+                        text = stringResource(R.string.charts_screen_speed_chart_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Legend(
+                        items = listOf(
+                            LegendItem("Speed", ChartColors.speedFill),
+                            LegendItem("Avg Speed", ChartColors.avgSpeedLine)
+                        )
+                    )
+                }
 
                 CartesianChartHost(
                     chart = rememberCartesianChart(
@@ -209,14 +222,7 @@ fun ChartsContent(
                     zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp)
-                )
-
-                Legend(
-                    items = listOf(
-                        LegendItem("Speed", MaterialTheme.colorScheme.primary),
-                        LegendItem("Avg Speed", MaterialTheme.colorScheme.secondary)
-                    )
+                        .height(ChartDimension.hostCardHeight)
                 )
             }
         }
@@ -228,12 +234,19 @@ fun ChartsContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.charts_screen_altitude_chart_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Row() {
+                    Text(
+                        text = stringResource(R.string.charts_screen_altitude_chart_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Legend(
+                        items = listOf(
+                            LegendItem("Altitude", ChartColors.altitudeFill)
+                        )
+                    )
+                }
 
                 CartesianChartHost(
                     chart = rememberCartesianChart(
@@ -268,13 +281,7 @@ fun ChartsContent(
                     zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp)
-                )
-
-                Legend(
-                    items = listOf(
-                        LegendItem("Altitude", MaterialTheme.colorScheme.tertiary)
-                    )
+                        .height(ChartDimension.hostCardHeight)
                 )
             }
         }
