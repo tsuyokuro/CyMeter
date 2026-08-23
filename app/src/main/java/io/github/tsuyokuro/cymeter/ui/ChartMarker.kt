@@ -1,12 +1,10 @@
 package io.github.tsuyokuro.cymeter.ui
 
-import android.R
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,58 +26,58 @@ internal val LocalMarkersEnabled = staticCompositionLocalOf { true }
 
 @Composable
 internal fun rememberMarker(
-  valueFormatter: DefaultCartesianMarker.ValueFormatter =
-    remember { DefaultCartesianMarker.ValueFormatter.default(colorCode = false) },
-  showIndicator: Boolean = true,
+    valueFormatter: DefaultCartesianMarker.ValueFormatter =
+        remember { DefaultCartesianMarker.ValueFormatter.default(colorCode = false) },
+    showIndicator: Boolean = true,
 ): CartesianMarker? {
-  if (!LocalMarkersEnabled.current) return null
-  val labelBackgroundShape = MarkerCornerBasedShape(CircleShape)
-  val labelBackground =
-    rememberShapeComponent(
-      fill = Fill(MaterialTheme.colorScheme.background),
-      shape = labelBackgroundShape,
-      strokeFill = Fill(MaterialTheme.colorScheme.outline),
-      strokeThickness = 1.dp,
+    if (!LocalMarkersEnabled.current) return null
+    val labelBackgroundShape = MarkerCornerBasedShape(CircleShape)
+    val labelBackground =
+        rememberShapeComponent(
+            fill = Fill(MaterialTheme.colorScheme.background),
+            shape = labelBackgroundShape,
+            strokeFill = Fill(MaterialTheme.colorScheme.outline),
+            strokeThickness = 1.dp,
+        )
+    val label =
+        rememberTextComponent(
+            style =
+                TextStyle(
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    fontSize = 12.sp,
+                ),
+            padding = Insets(8.dp, 4.dp),
+            background = labelBackground,
+            minWidth = TextComponent.MinWidth.fixed(40.dp),
+        )
+
+    val indicatorFrontComponent =
+        rememberShapeComponent(Fill(MaterialTheme.colorScheme.surface), CircleShape)
+
+    val guideline = rememberAxisGuidelineComponent()
+
+    return rememberDefaultCartesianMarker(
+        label = label,
+        valueFormatter = valueFormatter,
+        indicator =
+            if (showIndicator) {
+                { color ->
+                    LayeredComponent(
+                        back = ShapeComponent(Fill(color.copy(alpha = 0.15f)), CircleShape),
+                        front =
+                            LayeredComponent(
+                                back = ShapeComponent(fill = Fill(color), shape = CircleShape),
+                                front = indicatorFrontComponent,
+                                padding = Insets(5.dp),
+                            ),
+                        padding = Insets(10.dp),
+                    )
+                }
+            } else {
+                null
+            },
+        indicatorSize = 36.dp,
+        guideline = guideline,
     )
-  val label =
-    rememberTextComponent(
-      style =
-        TextStyle(
-          color = MaterialTheme.colorScheme.onBackground,
-          textAlign = TextAlign.Center,
-          fontSize = 12.sp,
-        ),
-      padding = Insets(8.dp, 4.dp),
-      background = labelBackground,
-      minWidth = TextComponent.MinWidth.fixed(40.dp),
-    )
-
-  val indicatorFrontComponent =
-    rememberShapeComponent(Fill(MaterialTheme.colorScheme.surface), CircleShape)
-
-  val guideline = rememberAxisGuidelineComponent()
-
-  return rememberDefaultCartesianMarker(
-    label = label,
-    valueFormatter = valueFormatter,
-    indicator =
-      if (showIndicator) {
-        { color ->
-          LayeredComponent(
-            back = ShapeComponent(Fill(color.copy(alpha = 0.15f)), CircleShape),
-            front =
-              LayeredComponent(
-                back = ShapeComponent(fill = Fill(color), shape = CircleShape),
-                front = indicatorFrontComponent,
-                padding = Insets(5.dp),
-              ),
-            padding = Insets(10.dp),
-          )
-        }
-      } else {
-        null
-      },
-    indicatorSize = 36.dp,
-    guideline = guideline,
-  )
 }

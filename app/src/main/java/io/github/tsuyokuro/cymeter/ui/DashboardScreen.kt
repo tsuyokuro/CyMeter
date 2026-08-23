@@ -60,9 +60,9 @@ fun DashboardScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cruisingData : CruisingService.CruisingState
-        by viewModel.uiState.collectAsStateWithLifecycle()
-    
+    val cruisingData: CruisingService.CruisingState
+            by viewModel.uiState.collectAsStateWithLifecycle()
+
     DashboardContent(
         cruisingData,
         isServiceRunning,
@@ -187,7 +187,8 @@ fun DashboardContent(
             }
             if (!cruisingData.isViewingHistory) {
                 item {
-                    val statusColor = if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
+                    val statusColor =
+                        if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
                     StatCard(
                         title = stringResource(R.string.dashboard_status),
                         value = if (cruisingData.isMoving) "Moving" else "Stopped",

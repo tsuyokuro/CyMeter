@@ -63,6 +63,7 @@ class CruisingService : Service() {
     // DB
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentSessionId: Long = 0L
+
     @Volatile
     private var currentSession: Session? = null
     private var lastSaveTime: Long = 0L
@@ -212,7 +213,8 @@ class CruisingService : Service() {
                 sensorManager.registerListener(
                     linearAccelerationListener,
                     it,
-                    SensorManager.SENSOR_DELAY_UI)
+                    SensorManager.SENSOR_DELAY_UI
+                )
             }
         }
     }
@@ -246,13 +248,15 @@ class CruisingService : Service() {
             }
 
             currentSession?.let { session ->
-                database.sessionDao().update(session.copy(
-                    endTime = currentTime,
-                    avgSpeed = avgSpeed,
-                    maxSpeed = maxSpeed,
-                    totalDistance = totalDistanceMeters,
-                    totalMovingTime = totalMovingTimeMillis
-                ))
+                database.sessionDao().update(
+                    session.copy(
+                        endTime = currentTime,
+                        avgSpeed = avgSpeed,
+                        maxSpeed = maxSpeed,
+                        totalDistance = totalDistanceMeters,
+                        totalMovingTime = totalMovingTimeMillis
+                    )
+                )
             }
         }
     }
@@ -280,13 +284,15 @@ class CruisingService : Service() {
                 val endTime = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
                     lastCurrentSession?.let { session ->
-                        database.sessionDao().update(session.copy(
-                            endTime = endTime,
-                            avgSpeed = lastAvgSpeed,
-                            maxSpeed = lastMaxSpeed,
-                            totalDistance = lastTotalDistance,
-                            totalMovingTime = lastTotalMovingTime
-                        ))
+                        database.sessionDao().update(
+                            session.copy(
+                                endTime = endTime,
+                                avgSpeed = lastAvgSpeed,
+                                maxSpeed = lastMaxSpeed,
+                                totalDistance = lastTotalDistance,
+                                totalMovingTime = lastTotalMovingTime
+                            )
+                        )
                     }
                 }
             }
@@ -329,7 +335,8 @@ class CruisingService : Service() {
             lpfAccelY = ACCEL_LPF_ALPHA * lpfAccelY + (1 - ACCEL_LPF_ALPHA) * y
             lpfAccelZ = ACCEL_LPF_ALPHA * lpfAccelZ + (1 - ACCEL_LPF_ALPHA) * z
 
-            val magnitude = sqrt(lpfAccelX * lpfAccelX + lpfAccelY * lpfAccelY + lpfAccelZ * lpfAccelZ)
+            val magnitude =
+                sqrt(lpfAccelX * lpfAccelX + lpfAccelY * lpfAccelY + lpfAccelZ * lpfAccelZ)
             val currentTime = System.currentTimeMillis()
 
             val oldIsMoving = isMovingInternal
@@ -353,7 +360,7 @@ class CruisingService : Service() {
         }
     }
 
-    private fun trackLocation(location : Location) {
+    private fun trackLocation(location: Location) {
 
         lpfSpeed = SPEED_LPF_ALPHA * lpfSpeed + (1.0f - SPEED_LPF_ALPHA) * location.speed
 
@@ -378,7 +385,8 @@ class CruisingService : Service() {
             lastMovingTimeUpdate = 0L
         }
 
-        val avgSpeed = if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
+        val avgSpeed =
+            if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
         val maxSpeed = maxSpeedInternal
 
         totalDistanceMeters += calcDistance(lastDistanceLocation, location)
@@ -387,9 +395,9 @@ class CruisingService : Service() {
         if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
             //val distance = calcDistance(lastLogLocation, location)
             //if (distance > 1.0f) {
-                writeLocationLog(currentTime, avgSpeed, maxSpeed, totalDistanceMeters, location)
-                lastSaveLocation = location
-                lastSaveTime = currentTime
+            writeLocationLog(currentTime, avgSpeed, maxSpeed, totalDistanceMeters, location)
+            lastSaveLocation = location
+            lastSaveTime = currentTime
             //}
         }
 
@@ -407,7 +415,8 @@ class CruisingService : Service() {
         avgSpeed: Float,
         maxSpeed: Float,
         totalDistanceMeters: Float,
-        location: Location) {
+        location: Location
+    ) {
 
         val point = LocationPoint(
             sessionId = currentSessionId,
@@ -423,7 +432,7 @@ class CruisingService : Service() {
 
         serviceScope.launch(Dispatchers.IO) {
             database.locationDao().insert(point)
-            
+
             val session = currentSession
             if (session != null) {
                 val updatedSession = session.copy(

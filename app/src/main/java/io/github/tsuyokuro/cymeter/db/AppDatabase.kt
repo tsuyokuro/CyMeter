@@ -56,12 +56,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private fun columnExists(db: androidx.sqlite.db.SupportSQLiteDatabase, tableName: String, columnName: String): Boolean {
+        private fun columnExists(
+            db: androidx.sqlite.db.SupportSQLiteDatabase,
+            tableName: String,
+            columnName: String
+        ): Boolean {
             db.query("PRAGMA table_info($tableName)").use { cursor ->
                 val nameIndex = cursor.getColumnIndex("name")
                 if (nameIndex == -1) return false
                 while (cursor.moveToNext()) {
-                    if (cursor.getString(nameIndex).trim().equals(columnName.trim(), ignoreCase = true)) return true
+                    if (cursor.getString(nameIndex).trim()
+                            .equals(columnName.trim(), ignoreCase = true)
+                    ) return true
                 }
             }
             return false
@@ -71,13 +77,14 @@ abstract class AppDatabase : RoomDatabase() {
             return INSTANCE ?: synchronized(this) {
                 val dbName = "cymeter_database"
                 val externalFilesDirs = context.getExternalFilesDirs(null)
-                
+
                 // If a second directory is available (usually SD card), use it
-                val dbFile = if (externalFilesDirs != null && externalFilesDirs.size > 1 && externalFilesDirs[1] != null) {
-                    File(externalFilesDirs[1], dbName).absolutePath
-                } else {
-                    dbName
-                }
+                val dbFile =
+                    if (externalFilesDirs != null && externalFilesDirs.size > 1 && externalFilesDirs[1] != null) {
+                        File(externalFilesDirs[1], dbName).absolutePath
+                    } else {
+                        dbName
+                    }
 
                 val instance = Room.databaseBuilder(
                     context.applicationContext,

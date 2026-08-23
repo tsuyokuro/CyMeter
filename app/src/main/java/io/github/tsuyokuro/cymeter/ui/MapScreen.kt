@@ -38,6 +38,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.db.LocationPoint
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -48,20 +50,18 @@ import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
-import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.GeoJson
 import org.maplibre.spatialk.geojson.LineString
 import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import java.util.Locale
 
 @Composable
@@ -118,7 +118,8 @@ fun MapScreen(
 
     val lineDataJson = remember(pathPoints) {
         if (pathPoints.size >= 2) {
-            val geoPositions = pathPoints.map { Position(longitude = it.longitude, latitude = it.latitude) }
+            val geoPositions =
+                pathPoints.map { Position(longitude = it.longitude, latitude = it.latitude) }
             val lineString = LineString(geoPositions)
             val feature = Feature<LineString, JsonObject?>(lineString, null)
             val collection = FeatureCollection<LineString, JsonObject?>(listOf(feature))
@@ -141,7 +142,14 @@ fun MapScreen(
                     val props = buildJsonObject {
                         put("label", JsonPrimitive("${distanceKm}km"))
                     }
-                    val feature = Feature(Point(Position(longitude = point.longitude, latitude = point.latitude)), props)
+                    val feature = Feature(
+                        Point(
+                            Position(
+                                longitude = point.longitude,
+                                latitude = point.latitude
+                            )
+                        ), props
+                    )
                     features.add(feature)
                     nextThreshold += intervalMeters
                 }
@@ -158,7 +166,12 @@ fun MapScreen(
             val startPoint = pathPoints.first()
             features.add(
                 Feature(
-                    Point(Position(longitude = startPoint.longitude, latitude = startPoint.latitude)),
+                    Point(
+                        Position(
+                            longitude = startPoint.longitude,
+                            latitude = startPoint.latitude
+                        )
+                    ),
                     buildJsonObject { put("color", JsonPrimitive("#a0ffa0")) }
                 )
             )
@@ -167,7 +180,12 @@ fun MapScreen(
                 val endPoint = pathPoints.last()
                 features.add(
                     Feature(
-                        Point(Position(longitude = endPoint.longitude, latitude = endPoint.latitude)),
+                        Point(
+                            Position(
+                                longitude = endPoint.longitude,
+                                latitude = endPoint.latitude
+                            )
+                        ),
                         buildJsonObject { put("color", JsonPrimitive("#ffa0a0")) }
                     )
                 )
@@ -179,14 +197,14 @@ fun MapScreen(
 
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    fun moveViewToAllRoute(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+    fun moveViewToAllRoute(map: MapLibreMap, pathPoints: List<LocationPoint>) {
         val bounds = LatLngBounds.Builder()
             .includes(pathPoints.map { LatLng(it.latitude, it.longitude) })
             .build()
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
     }
 
-    fun moveViewToLastPoint(map :  MapLibreMap, pathPoints : List<LocationPoint>) {
+    fun moveViewToLastPoint(map: MapLibreMap, pathPoints: List<LocationPoint>) {
         val lastPoint = pathPoints.last()
         val target = LatLng(lastPoint.latitude, lastPoint.longitude)
         val currentZoom = map.cameraPosition.zoom
@@ -213,7 +231,9 @@ fun MapScreen(
     Scaffold(
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+        Box(modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()) {
             AndroidView(
                 factory = { mapView },
                 modifier = Modifier.fillMaxSize(),
@@ -224,10 +244,22 @@ fun MapScreen(
                             map.setStyle(styleUri) { style ->
                                 setupStyle(style, primaryColor)
                                 enableLocationComponent(map, style, context)
-                                updateMapData(style, lineDataJson, labelsDataJson, endpointsDataJson)
+                                updateMapData(
+                                    style,
+                                    lineDataJson,
+                                    labelsDataJson,
+                                    endpointsDataJson
+                                )
                             }
                         } else {
-                            map.style?.let { updateMapData(it, lineDataJson, labelsDataJson, endpointsDataJson) }
+                            map.style?.let {
+                                updateMapData(
+                                    it,
+                                    lineDataJson,
+                                    labelsDataJson,
+                                    endpointsDataJson
+                                )
+                            }
                         }
                     }
                 }
@@ -237,7 +269,10 @@ fun MapScreen(
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.padding(16.dp).fillMaxWidth().align(Alignment.TopCenter)
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -332,7 +367,12 @@ private fun setupStyle(style: Style, primaryColor: Color) {
     }
 }
 
-private fun updateMapData(style: Style, lineDataJson: String, labelsDataJson: String, endpointsDataJson: String) {
+private fun updateMapData(
+    style: Style,
+    lineDataJson: String,
+    labelsDataJson: String,
+    endpointsDataJson: String
+) {
     val polylineSource = style.getSourceAs<GeoJsonSource>("polyline-source")
     polylineSource?.setGeoJson(lineDataJson)
 

@@ -13,6 +13,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,38 +30,43 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Map
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.ui.res.stringResource
 import androidx.navigation3.ui.NavDisplay
-import io.github.tsuyokuro.cymeter.db.AppDatabase
-import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.ui.DashboardScreen
 import io.github.tsuyokuro.cymeter.ui.HistoryScreen
 import io.github.tsuyokuro.cymeter.ui.MapScreen
 import io.github.tsuyokuro.cymeter.ui.SettingsScreen
+import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 import kotlinx.serialization.Serializable
-import androidx.lifecycle.viewmodel.viewModelFactory
 
 @Serializable
 data object DashboardRoute : NavKey
@@ -90,23 +101,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        uri?.let {
-            viewModel.exportDatabase(applicationContext, contentResolver, it)
-            Toast.makeText(this, getString(R.string.common_database_exported_msg), Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let {
-            viewModel.importDatabase(applicationContext, contentResolver, it) {
-                Toast.makeText(this,
-                    getString(R.string.common_database_restored_msg), Toast.LENGTH_LONG).show()
-                finish()
-                startActivity(intent)
+    private val exportLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            uri?.let {
+                viewModel.exportDatabase(applicationContext, contentResolver, it)
+                Toast.makeText(
+                    this,
+                    getString(R.string.common_database_exported_msg),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
-    }
+
+    private val importLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let {
+                viewModel.importDatabase(applicationContext, contentResolver, it) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.common_database_restored_msg), Toast.LENGTH_LONG
+                    ).show()
+                    finish()
+                    startActivity(intent)
+                }
+            }
+        }
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -232,7 +251,8 @@ class MainActivity : ComponentActivity() {
                                 rememberViewModelStoreNavEntryDecorator()
                             ),
                             transitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
+                                val routes =
+                                    listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -247,7 +267,8 @@ class MainActivity : ComponentActivity() {
                                         ) + fadeOut(animationSpec = tween(300))
                             },
                             popTransitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
+                                val routes =
+                                    listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -278,12 +299,15 @@ class MainActivity : ComponentActivity() {
                                             onOpenSettings = onSettingsClick
                                         )
                                     }
+
                                     is MapRoute -> NavEntry(key) {
                                         MapScreen(viewModel = viewModel)
                                     }
+
                                     is ChartsRoute -> NavEntry(key) {
                                         io.github.tsuyokuro.cymeter.ui.ChartsScreen(viewModel = viewModel)
                                     }
+
                                     is HistoryRoute -> NavEntry(key) {
                                         HistoryScreen(
                                             viewModel = viewModel,
@@ -293,6 +317,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
+
                                     is SettingsRoute -> NavEntry(key) {
                                         SettingsScreen(
                                             viewModel = viewModel,
@@ -301,6 +326,7 @@ class MainActivity : ComponentActivity() {
                                             onImportDatabase = { importLauncher.launch(arrayOf("*/*")) }
                                         )
                                     }
+
                                     else -> error("Unknown route $key")
                                 }
                             }
