@@ -15,8 +15,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.db.LocationPoint
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
+import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.History
@@ -158,8 +163,45 @@ fun ChartsContent(
         )
     )
 
-    val marker1 = rememberMarker()
-    val marker2 = rememberMarker()
+    val speedMarkerValueFormatter = remember {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            buildAnnotatedString {
+                if (targets.isNotEmpty()) {
+                    append("%.1f:".format(targets[0].x))
+                    targets.forEach { target ->
+                        (target as? LineCartesianLayerMarkerTarget)?.points?.forEachIndexed { index, point ->
+                            withStyle(SpanStyle(color = point.color)) {
+                                append("■")
+                            }
+                            append("%.1f".format(point.entry.y))
+                            if (index != target.points.lastIndex) append(",")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val altitudeMarkerValueFormatter = remember {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            buildAnnotatedString {
+                if (targets.isNotEmpty()) {
+                    append("%.1f:".format(targets[0].x))
+                    targets.forEach { target ->
+                        (target as? LineCartesianLayerMarkerTarget)?.points?.forEach { point ->
+                            withStyle(SpanStyle(color = point.color)) {
+                                append("■")
+                            }
+                            append("%.0f".format(point.entry.y))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val marker1 = rememberMarker(valueFormatter = speedMarkerValueFormatter)
+    val marker2 = rememberMarker(valueFormatter = altitudeMarkerValueFormatter)
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         // Speed Chart

@@ -28,6 +28,8 @@ internal val LocalMarkersEnabled = staticCompositionLocalOf { true }
 
 @Composable
 internal fun rememberMarker(
+  valueFormatter: DefaultCartesianMarker.ValueFormatter =
+    remember { DefaultCartesianMarker.ValueFormatter.default(colorCode = false) },
   showIndicator: Boolean = true,
 ): CartesianMarker? {
   if (!LocalMarkersEnabled.current) return null
@@ -43,20 +45,14 @@ internal fun rememberMarker(
     rememberTextComponent(
       style =
         TextStyle(
-          color = Color.Black,
+          color = MaterialTheme.colorScheme.onBackground,
           textAlign = TextAlign.Center,
-          fontSize = 16.sp,
+          fontSize = 12.sp,
         ),
       padding = Insets(8.dp, 4.dp),
       background = labelBackground,
       minWidth = TextComponent.MinWidth.fixed(40.dp),
     )
-
-  val valueFormatter = remember {
-    DefaultCartesianMarker.ValueFormatter.default(
-      colorCode = false
-    )
-  }
 
   val indicatorFrontComponent =
     rememberShapeComponent(Fill(MaterialTheme.colorScheme.surface), CircleShape)
