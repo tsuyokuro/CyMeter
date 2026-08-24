@@ -2,6 +2,7 @@ package io.github.tsuyokuro.cymeter
 
 import app.cash.turbine.test
 import io.github.tsuyokuro.cymeter.db.LocationDao
+import io.github.tsuyokuro.cymeter.db.LocationPoint
 import io.github.tsuyokuro.cymeter.db.Session
 import io.github.tsuyokuro.cymeter.db.SessionDao
 import io.mockk.coEvery
@@ -142,5 +143,59 @@ class CruisingViewModelTest {
 
         assertEquals(true, viewModel.uiState.value.isTracking)
         assertEquals(0L, viewModel.uiState.value.movingTimeMillis)
+    }
+
+    @Test
+    fun `pathPoints switches correctly when sessionId changes`() = runTest {
+        val sessionId1 = 1L
+        val sessionId2 = 2L
+        val points1 = listOf(
+            LocationPoint(
+                id = 1,
+                sessionId = sessionId1,
+                latitude = 35.0,
+                longitude = 139.0,
+                altitude = 10.0,
+                speed = 5f,
+                avgSpeed = 4f,
+                totalDistanceMeters = 100f,
+                movingTimeMillis = 1000,
+                timestamp = 10000
+            )
+        )
+        val points2 = listOf(
+            LocationPoint(
+                id = 2,
+                sessionId = sessionId2,
+                latitude = 36.0,
+                longitude = 140.0,
+                altitude = 20.0,
+                speed = 10f,
+                avgSpeed = 8f,
+                totalDistanceMeters = 200f,
+                movingTimeMillis = 2000,
+                timestamp = 20000
+            )
+        )
+
+        every { locationDao.getPointsFlowBySessionId(sessionId1) } returns flowOf(points1)
+        every { locationDao.getPointsFlowBySessionId(sessionId2) } returns flowOf(points2)
+
+        viewModel.pathPoints.test {
+            // sessionId が 0 の時は空リスト (初期化時に 0L なので)
+            assertEquals(emptyList<LocationPoint>(), awaitItem())
+
+            // sessionId1 に切り替え
+            viewModel.updateState(CruisingService.CruisingState(sessionId = sessionId1))
+            assertEquals(points1, awaitItem())
+
+            // sessionId2 に切り替え
+            viewModel.updateState(CruisingService.CruisingState(sessionId = sessionId2))
+            assertEquals(points2, awaitItem())
+
+            // sessionId を 0 に戻す
+            viewModel.updateState(CruisingService.CruisingState(sessionId = 0L))
+            assertEquals(emptyList<LocationPoint>(), awaitItem())
+        }
     }
 }
