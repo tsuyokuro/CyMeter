@@ -44,7 +44,9 @@ class CruisingService : Service() {
 
         private const val SPEED_LPF_ALPHA = 0.5f
 
-        private const val DISTANCE_TIME_INTERVAL_MS = 10000L
+        private const val DISTANCE_TIME_INTERVAL_MS = 2000L
+        private const val SAVE_DISTANCE_THRESHOLD_METERS = 2.0f
+        private const val SAVE_TIME_FALLBACK_MS = 30000L
     }
 
     private val binder = LocalBinder()
@@ -87,6 +89,7 @@ class CruisingService : Service() {
 
     private var lastDistanceLocation: Location? = null
     private var totalDistanceMeters: Float = 0.0f
+    private var lastSavedTotalDistance: Float = -1f
 
     private var lpfAccelX = 0.0f
     private var lpfAccelY = 0.0f
@@ -194,6 +197,7 @@ class CruisingService : Service() {
 
             lastSaveTime = 0L
             lastSaveLocation = null
+            lastSavedTotalDistance = -1f
 
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setMinUpdateIntervalMillis(500)
@@ -278,6 +282,7 @@ class CruisingService : Service() {
         lastDistanceLocation = null
         lastSaveLocation = null
         lastSaveTime = 0L
+        lastSavedTotalDistance = -1f
 
         serviceScope.launch {
             if (isTracking && lastCurrentSessionId != 0L) {
@@ -393,12 +398,21 @@ class CruisingService : Service() {
         lastDistanceLocation = location
 
         if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
-            //val distance = calcDistance(lastLogLocation, location)
-            //if (distance > 1.0f) {
-            writeLocationLog(currentTime, avgSpeed, maxSpeed, totalDistanceMeters, location)
-            lastSaveLocation = location
-            lastSaveTime = currentTime
-            //}
+            if (lastSavedTotalDistance == -1f ||
+                totalDistanceMeters - lastSavedTotalDistance >= SAVE_DISTANCE_THRESHOLD_METERS ||
+                currentTime - lastSaveTime >= SAVE_TIME_FALLBACK_MS
+            ) {
+                writeLocationLog(
+                    currentTime,
+                    avgSpeed, maxSpeed,
+                    totalDistanceMeters,
+                    location)
+
+                lastSaveLocation = location
+                lastSaveTime = currentTime
+
+                lastSavedTotalDistance = totalDistanceMeters
+            }
         }
 
         _cruisingData.value = _cruisingData.value.copy(

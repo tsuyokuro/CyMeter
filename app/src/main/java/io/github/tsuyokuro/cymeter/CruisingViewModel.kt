@@ -34,6 +34,10 @@ class CruisingViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
+    companion object {
+        const val MAX_CHART_SAMPLE_COUNT = 200
+    }
+
     private val _uiState = MutableStateFlow(CruisingService.CruisingState())
     val uiState: StateFlow<CruisingService.CruisingState> = _uiState.asStateFlow()
 
@@ -121,10 +125,11 @@ class CruisingViewModel(
                 .distinctBy { toChartsDistance(it.totalDistanceMeters) }
                 .sortedBy { it.totalDistanceMeters }
                 .let { list ->
-                    if (list.size > 500) {
-                        // 500sampleを超える場合は、500に減らす
-                        val step = list.size / 500.0
-                        (0 until 500).map { i ->
+                    if (list.size > MAX_CHART_SAMPLE_COUNT) {
+                        // サンプル数がmaxChartSampleCountを超える場合は、
+                        // maxChartSampleCountになるように間引く
+                        val step = list.size / MAX_CHART_SAMPLE_COUNT.toFloat()
+                        (0 until MAX_CHART_SAMPLE_COUNT).map { i ->
                             list[(i * step).toInt().coerceAtMost(list.lastIndex)]
                         }.distinctBy { toChartsDistance(it.totalDistanceMeters) }
                     } else {
