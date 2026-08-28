@@ -349,6 +349,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopCruisingService() {
+        cruisingService?.stopTracking()
         viewModel.setTracking(false)
         if (isBound) {
             unbindService(connection)

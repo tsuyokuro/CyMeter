@@ -212,17 +212,16 @@ class CruisingService : Service() {
         }
     }
 
-    private fun stopTracking() {
+    fun stopTracking() {
         if (!isTracking) return
         isTracking = false
-        _cruisingData.value = _cruisingData.value.copy(isTracking = false)
 
         fusedLocationClient.removeLocationUpdates(locationCallback)
 
         val currentTime = System.currentTimeMillis()
         val avgSpeed = _cruisingData.value.avgCruisingSpeed
         val maxSpeed = maxSpeedInternal
-        
+
         // Finalize current segment if valid
         finalizeCurrentSegment(currentTime)
 
@@ -231,10 +230,18 @@ class CruisingService : Service() {
         val repCruisingSpeed = if (totalValidDuration > 0) {
             totalValidDistance / (totalValidDuration / 1000f)
         } else 0f
-        
+
         val bestSegment = validSegments.maxByOrNull { it.avgSpeed }
         val bestSegSpeed = bestSegment?.avgSpeed ?: 0f
         val bestSegDist = bestSegment?.distanceMeters ?: 0f
+
+        // Update state with final calculated values
+        _cruisingData.value = _cruisingData.value.copy(
+            isTracking = false,
+            representativeCruisingSpeed = repCruisingSpeed,
+            bestSegmentSpeed = bestSegSpeed,
+            bestSegmentDistance = bestSegDist
+        )
 
         kotlinx.coroutines.runBlocking {
             if (lastDistanceLocation != null) {
@@ -280,11 +287,24 @@ class CruisingService : Service() {
     }
 
     fun resetData() {
+        val currentTime = System.currentTimeMillis()
         val lastAvgSpeed = _cruisingData.value.avgCruisingSpeed
         val lastMaxSpeed = maxSpeedInternal
         val lastTotalDistance = totalDistanceMeters
         val lastCurrentSessionId = currentSessionId
         val lastCurrentSession = currentSession
+        
+        // Finalize segment for the resetting session
+        finalizeCurrentSegment(currentTime)
+        val totalValidDistance = validSegments.sumOf { it.distanceMeters.toDouble() }.toFloat()
+        val totalValidDuration = validSegments.sumOf { it.durationMs.toDouble() }.toLong()
+        val repCruisingSpeed = if (totalValidDuration > 0) {
+            totalValidDistance / (totalValidDuration / 1000f)
+        } else 0f
+        
+        val bestSegment = validSegments.maxByOrNull { it.avgSpeed }
+        val bestSegSpeed = bestSegment?.avgSpeed ?: 0f
+        val bestSegDist = bestSegment?.distanceMeters ?: 0f
 
         totalSpeedSum = 0.0
         speedSamplesCount = 0
@@ -303,15 +323,17 @@ class CruisingService : Service() {
 
         serviceScope.launch {
             if (isTracking && lastCurrentSessionId != 0L) {
-                val endTime = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
                     lastCurrentSession?.let { session ->
                         database.sessionDao().update(
                             session.copy(
-                                endTime = endTime,
+                                endTime = currentTime,
                                 avgSpeed = lastAvgSpeed,
                                 maxSpeed = lastMaxSpeed,
-                                totalDistance = lastTotalDistance
+                                totalDistance = lastTotalDistance,
+                                representativeCruisingSpeed = repCruisingSpeed,
+                                bestSegmentSpeed = bestSegSpeed,
+                                bestSegmentDistance = bestSegDist
                             )
                         )
                     }
@@ -409,15 +431,55 @@ class CruisingService : Service() {
             }
         }
 
+        // Live Cruising Metrics Calculation
+        val liveMetrics = calculateLiveCruisingMetrics(currentTime)
+
         _cruisingData.value = _cruisingData.value.copy(
             currentSpeed = speed,
             avgCruisingSpeed = avgSpeed,
             rollingCruisingSpeed = rollingSpeed,
             isRollingSpeedHeld = isHeld,
             maxSpeed = maxSpeed,
-            distanceKm = totalDistanceMeters / 1000f
+            distanceKm = totalDistanceMeters / 1000f,
+            representativeCruisingSpeed = liveMetrics.representativeCruisingSpeed,
+            bestSegmentSpeed = liveMetrics.bestSegmentSpeed,
+            bestSegmentDistance = liveMetrics.bestSegmentDistance
         )
     }
+
+    private fun calculateLiveCruisingMetrics(currentTime: Long): LiveCruisingMetrics {
+        var totalValidDistance = validSegments.sumOf { it.distanceMeters.toDouble() }.toFloat()
+        var totalValidDuration = validSegments.sumOf { it.durationMs.toDouble() }.toLong()
+        var bestSegSpeed = validSegments.maxByOrNull { it.avgSpeed }?.avgSpeed ?: 0f
+        var bestSegDist = validSegments.maxByOrNull { it.avgSpeed }?.distanceMeters ?: 0f
+
+        if (segmentStartTime > 0) {
+            val currentDuration = currentTime - segmentStartTime
+            if (currentDuration >= MIN_SEGMENT_DURATION_MS) {
+                val currentDistance = totalDistanceMeters - segmentStartDistance
+                totalValidDistance += currentDistance
+                totalValidDuration += currentDuration
+
+                val currentAvgSpeed = currentDistance / (currentDuration / 1000f)
+                if (currentAvgSpeed > bestSegSpeed) {
+                    bestSegSpeed = currentAvgSpeed
+                    bestSegDist = currentDistance
+                }
+            }
+        }
+
+        val repCruisingSpeed = if (totalValidDuration > 0) {
+            totalValidDistance / (totalValidDuration / 1000f)
+        } else 0f
+
+        return LiveCruisingMetrics(repCruisingSpeed, bestSegSpeed, bestSegDist)
+    }
+
+    private data class LiveCruisingMetrics(
+        val representativeCruisingSpeed: Float,
+        val bestSegmentSpeed: Float,
+        val bestSegmentDistance: Float
+    )
 
     private fun writeLocationLog(
         timestamp: Long,
