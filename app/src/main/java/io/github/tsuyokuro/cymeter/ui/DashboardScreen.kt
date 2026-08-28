@@ -13,16 +13,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -178,28 +175,6 @@ fun DashboardContent(
             }
             item {
                 StatCard(
-                    title = stringResource(R.string.dashboard_moving_time),
-                    value = formatMovingTime(cruisingData.movingTimeMillis),
-                    unit = "",
-                    icon = Icons.Rounded.Timer,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-            }
-            if (!cruisingData.isViewingHistory) {
-                item {
-                    val statusColor =
-                        if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
-                    StatCard(
-                        title = stringResource(R.string.dashboard_status),
-                        value = if (cruisingData.isMoving) "Moving" else "Stopped",
-                        unit = "",
-                        icon = if (cruisingData.isMoving) Icons.AutoMirrored.Rounded.DirectionsBike else Icons.Rounded.PauseCircle,
-                        color = statusColor
-                    )
-                }
-            }
-            item {
-                StatCard(
                     title = stringResource(R.string.dashboard_total_distance),
                     value = "%.2f".format(cruisingData.distanceKm),
                     unit = "km",
@@ -312,13 +287,6 @@ fun StatCard(
             }
         }
     }
-}
-
-fun formatMovingTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / (1000 * 60)) % 60
-    val hours = (millis / (1000 * 60 * 60))
-    return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")

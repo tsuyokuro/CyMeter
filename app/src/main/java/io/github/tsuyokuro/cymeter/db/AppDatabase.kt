@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import java.io.File
 
-@Database(entities = [LocationPoint::class, Session::class], version = 6, exportSchema = false)
+@Database(entities = [LocationPoint::class, Session::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun sessionDao(): SessionDao

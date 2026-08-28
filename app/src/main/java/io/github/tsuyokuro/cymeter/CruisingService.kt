@@ -6,10 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.location.Location
 import android.os.Binder
 import android.os.IBinder
@@ -38,10 +34,6 @@ import kotlin.math.sqrt
 class CruisingService : Service() {
 
     companion object {
-        private const val STOP_THRESHOLD = 0.5f
-        private const val STOP_DURATION_MS = 2000L
-        private const val ACCEL_LPF_ALPHA = 0.7f
-
         private const val SPEED_LPF_ALPHA = 0.5f
 
         private const val DISTANCE_TIME_INTERVAL_MS = 2000L
@@ -56,11 +48,6 @@ class CruisingService : Service() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
-    private lateinit var sensorManager: SensorManager
-    private var linearAccelerationSensor: Sensor? = null
-
-    private lateinit var linearAccelerationListener: SensorEventListener
-
 
     // DB
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -76,32 +63,21 @@ class CruisingService : Service() {
     private val _cruisingData = MutableStateFlow<CruisingState>(CruisingState())
     val cruisingData: StateFlow<CruisingState> = _cruisingData.asStateFlow()
 
-    private var lastBelowThresholdTime: Long = 0L
-    private var isMovingInternal: Boolean = false
     private var totalSpeedSum: Double = 0.0
     private var speedSamplesCount: Long = 0
     private var maxSpeedInternal: Float = 0.0f
 
     private var lpfSpeed = 0.0f
 
-    private var lastMovingTimeUpdate: Long = 0L
-    private var totalMovingTimeMillis: Long = 0L
-
     private var lastDistanceLocation: Location? = null
     private var totalDistanceMeters: Float = 0.0f
     private var lastSavedTotalDistance: Float = -1f
 
-    private var lpfAccelX = 0.0f
-    private var lpfAccelY = 0.0f
-    private var lpfAccelZ = 0.0f
-
     data class CruisingState(
-        val isMoving: Boolean = false,
         val isTracking: Boolean = false,
         val currentSpeed: Float = 0f,
         val avgCruisingSpeed: Float = 0f,
         val maxSpeed: Float = 0f,
-        val movingTimeMillis: Long = 0L,
         val distanceKm: Float = 0.0f,
         val sessionId: Long = 0L,
         val isViewingHistory: Boolean = false
@@ -120,21 +96,12 @@ class CruisingService : Service() {
             }
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        linearAccelerationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
                     trackLocation(location)
                 }
-            }
-        }
-
-        linearAccelerationListener = object : SensorEventListener {
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-            override fun onSensorChanged(event: SensorEvent?) {
-                onAccelSensorChanged(event)
             }
         }
     }
@@ -212,14 +179,6 @@ class CruisingService : Service() {
             } catch (_: SecurityException) {
                 // Permissions should be handled in Activity
             }
-
-            linearAccelerationSensor?.let {
-                sensorManager.registerListener(
-                    linearAccelerationListener,
-                    it,
-                    SensorManager.SENSOR_DELAY_UI
-                )
-            }
         }
     }
 
@@ -229,7 +188,6 @@ class CruisingService : Service() {
         _cruisingData.value = _cruisingData.value.copy(isTracking = false)
 
         fusedLocationClient.removeLocationUpdates(locationCallback)
-        sensorManager.unregisterListener(linearAccelerationListener)
 
         val currentTime = System.currentTimeMillis()
         val avgSpeed = _cruisingData.value.avgCruisingSpeed
@@ -245,7 +203,6 @@ class CruisingService : Service() {
                     speed = lpfSpeed,
                     avgSpeed = avgSpeed,
                     totalDistanceMeters = totalDistanceMeters,
-                    movingTimeMillis = totalMovingTimeMillis,
                     timestamp = currentTime
                 )
                 database.locationDao().insert(point)
@@ -257,8 +214,7 @@ class CruisingService : Service() {
                         endTime = currentTime,
                         avgSpeed = avgSpeed,
                         maxSpeed = maxSpeed,
-                        totalDistance = totalDistanceMeters,
-                        totalMovingTime = totalMovingTimeMillis
+                        totalDistance = totalDistanceMeters
                     )
                 )
             }
@@ -269,15 +225,12 @@ class CruisingService : Service() {
         val lastAvgSpeed = _cruisingData.value.avgCruisingSpeed
         val lastMaxSpeed = maxSpeedInternal
         val lastTotalDistance = totalDistanceMeters
-        val lastTotalMovingTime = totalMovingTimeMillis
         val lastCurrentSessionId = currentSessionId
         val lastCurrentSession = currentSession
 
         totalSpeedSum = 0.0
         speedSamplesCount = 0
         maxSpeedInternal = 0.0f
-        totalMovingTimeMillis = 0
-        lastMovingTimeUpdate = if (isMovingInternal) System.currentTimeMillis() else 0L
         totalDistanceMeters = 0.0f
         lastDistanceLocation = null
         lastSaveLocation = null
@@ -294,8 +247,7 @@ class CruisingService : Service() {
                                 endTime = endTime,
                                 avgSpeed = lastAvgSpeed,
                                 maxSpeed = lastMaxSpeed,
-                                totalDistance = lastTotalDistance,
-                                totalMovingTime = lastTotalMovingTime
+                                totalDistance = lastTotalDistance
                             )
                         )
                     }
@@ -311,12 +263,10 @@ class CruisingService : Service() {
             }
 
             _cruisingData.value = CruisingState(
-                isMoving = isMovingInternal,
                 isTracking = isTracking,
                 currentSpeed = _cruisingData.value.currentSpeed,
                 avgCruisingSpeed = 0f,
                 maxSpeed = 0f,
-                movingTimeMillis = 0L,
                 distanceKm = 0.0f,
                 sessionId = currentSessionId
             )
@@ -327,42 +277,6 @@ class CruisingService : Service() {
         stopTracking()
         serviceScope.cancel()
         super.onDestroy()
-    }
-
-    private fun onAccelSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_LINEAR_ACCELERATION) {
-            val x = event.values[0]
-            val y = event.values[1]
-            val z = event.values[2]
-
-            // Apply Low-Pass Filter
-            lpfAccelX = ACCEL_LPF_ALPHA * lpfAccelX + (1 - ACCEL_LPF_ALPHA) * x
-            lpfAccelY = ACCEL_LPF_ALPHA * lpfAccelY + (1 - ACCEL_LPF_ALPHA) * y
-            lpfAccelZ = ACCEL_LPF_ALPHA * lpfAccelZ + (1 - ACCEL_LPF_ALPHA) * z
-
-            val magnitude =
-                sqrt(lpfAccelX * lpfAccelX + lpfAccelY * lpfAccelY + lpfAccelZ * lpfAccelZ)
-            val currentTime = System.currentTimeMillis()
-
-            val oldIsMoving = isMovingInternal
-
-            if (magnitude > STOP_THRESHOLD) {
-                isMovingInternal = true
-                lastBelowThresholdTime = 0L
-            } else {
-                if (lastBelowThresholdTime == 0L) {
-                    lastBelowThresholdTime = currentTime
-                } else if (currentTime - lastBelowThresholdTime > STOP_DURATION_MS) {
-                    isMovingInternal = false
-                }
-            }
-
-            if (oldIsMoving != isMovingInternal) {
-                _cruisingData.value = _cruisingData.value.copy(
-                    isMoving = isMovingInternal
-                )
-            }
-        }
     }
 
     private fun trackLocation(location: Location) {
@@ -379,15 +293,6 @@ class CruisingService : Service() {
         if (speed > speedThresholdMps) {
             totalSpeedSum += speed
             speedSamplesCount++
-        }
-
-        if (isMovingInternal) {
-            if (lastMovingTimeUpdate > 0) {
-                totalMovingTimeMillis += (currentTime - lastMovingTimeUpdate)
-            }
-            lastMovingTimeUpdate = currentTime
-        } else {
-            lastMovingTimeUpdate = 0L
         }
 
         val avgSpeed =
@@ -419,7 +324,6 @@ class CruisingService : Service() {
             currentSpeed = speed,
             avgCruisingSpeed = avgSpeed,
             maxSpeed = maxSpeed,
-            movingTimeMillis = totalMovingTimeMillis,
             distanceKm = totalDistanceMeters / 1000f
         )
     }
@@ -440,7 +344,6 @@ class CruisingService : Service() {
             speed = lpfSpeed,
             avgSpeed = avgSpeed,
             totalDistanceMeters = totalDistanceMeters,
-            movingTimeMillis = totalMovingTimeMillis,
             timestamp = timestamp
         )
 
@@ -452,8 +355,7 @@ class CruisingService : Service() {
                 val updatedSession = session.copy(
                     avgSpeed = avgSpeed,
                     maxSpeed = maxSpeed,
-                    totalDistance = totalDistanceMeters,
-                    totalMovingTime = totalMovingTimeMillis
+                    totalDistance = totalDistanceMeters
                 )
                 database.sessionDao().update(updatedSession)
                 currentSession = updatedSession

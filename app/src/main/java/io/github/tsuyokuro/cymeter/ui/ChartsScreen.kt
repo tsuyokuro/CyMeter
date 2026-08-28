@@ -395,12 +395,6 @@ fun SelectedPointDetails(point: LocationPoint) {
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Time: ${formatMovingTime(point.movingTimeMillis)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
         }
     }
 }

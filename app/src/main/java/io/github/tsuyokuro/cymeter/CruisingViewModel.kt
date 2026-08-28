@@ -170,9 +170,7 @@ class CruisingViewModel(
                     avgCruisingSpeed = lastSession.avgSpeed,
                     maxSpeed = lastSession.maxSpeed,
                     distanceKm = lastSession.totalDistance / 1000f,
-                    movingTimeMillis = lastSession.totalMovingTime,
-                    currentSpeed = 0f,
-                    isMoving = false
+                    currentSpeed = 0f
                 )
             }
         }
@@ -202,9 +200,7 @@ class CruisingViewModel(
                     avgCruisingSpeed = session.avgSpeed,
                     maxSpeed = session.maxSpeed,
                     distanceKm = session.totalDistance / 1000f,
-                    movingTimeMillis = session.totalMovingTime,
                     isViewingHistory = true,
-                    isMoving = false,
                     currentSpeed = 0f
                 )
             }
