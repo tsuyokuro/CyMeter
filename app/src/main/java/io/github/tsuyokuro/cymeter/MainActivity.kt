@@ -12,6 +12,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -23,37 +30,42 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Map
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.ui.res.stringResource
 import androidx.navigation3.ui.NavDisplay
-import io.github.tsuyokuro.cymeter.db.AppDatabase
-import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.ui.DashboardScreen
 import io.github.tsuyokuro.cymeter.ui.HistoryScreen
 import io.github.tsuyokuro.cymeter.ui.MapScreen
 import io.github.tsuyokuro.cymeter.ui.SettingsScreen
+import io.github.tsuyokuro.cymeter.ui.theme.CyMeterTheme
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -75,31 +87,54 @@ class MainActivity : ComponentActivity() {
 
     private var cruisingService by mutableStateOf<CruisingService?>(null)
     private var isBound by mutableStateOf(false)
-    private lateinit var viewModel: CruisingViewModel
 
-    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        uri?.let {
-            viewModel.exportDatabase(applicationContext, contentResolver, it)
-            Toast.makeText(this, getString(R.string.common_database_exported_msg), Toast.LENGTH_SHORT).show()
-        }
-    }
+    private val db by lazy { AppDatabase.getDatabase(applicationContext) }
+    private val locationDao by lazy { db.locationDao() }
+    private val sessionDao by lazy { db.sessionDao() }
+    private val settingsRepository by lazy { SettingsRepository(applicationContext) }
 
-    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let {
-            viewModel.importDatabase(applicationContext, contentResolver, it) {
-                Toast.makeText(this,
-                    getString(R.string.common_database_restored_msg), Toast.LENGTH_LONG).show()
-                finish()
-                startActivity(intent)
+    private val viewModel: CruisingViewModel by viewModels {
+        viewModelFactory {
+            addInitializer(CruisingViewModel::class) {
+                CruisingViewModel(locationDao, sessionDao, settingsRepository)
             }
         }
     }
 
+    private val exportLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+            uri?.let {
+                viewModel.exportDatabase(applicationContext, contentResolver, it)
+                Toast.makeText(
+                    this,
+                    getString(R.string.common_database_exported_msg),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+    private val importLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let {
+                viewModel.importDatabase(applicationContext, contentResolver, it) {
+                    Toast.makeText(
+                        this,
+                        getString(R.string.common_database_restored_msg), Toast.LENGTH_LONG
+                    ).show()
+                    finish()
+                    startActivity(intent)
+                }
+            }
+        }
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as CruisingService.LocalBinder
-            cruisingService = binder.getService()
+            val instance = binder.getService()
+            cruisingService = instance
             isBound = true
+            // Immediately sync tracking state from service
+            viewModel.updateState(instance.cruisingData.value)
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -112,6 +147,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Attempt to bind to the service if it's already running
+        // The viewModel is already initialized via 'by viewModels'
+        val intent = Intent(this, CruisingService::class.java)
+        bindService(intent, connection, 0) // Use 0 to not start it if not running
+
         setContent {
             CyMeterTheme {
                 val permissionsState = rememberMultiplePermissionsState(
@@ -127,10 +168,6 @@ class MainActivity : ComponentActivity() {
 
                 if (permissionsState.allPermissionsGranted) {
                     val backStack = remember { mutableStateListOf<Any>(DashboardRoute) }
-                    val db = remember { AppDatabase.getDatabase(applicationContext) }
-                    val locationDao = remember { db.locationDao() }
-                    val sessionDao = remember { db.sessionDao() }
-                    val settingsRepository = remember { SettingsRepository(applicationContext) }
 
                     val onDashboardClick = dropUnlessResumed {
                         if (backStack.lastOrNull() !is DashboardRoute) {
@@ -165,11 +202,6 @@ class MainActivity : ComponentActivity() {
                             backStack.add(SettingsRoute)
                         }
                     }
-
-                    val viewModel: CruisingViewModel = viewModel {
-                        CruisingViewModel(locationDao, sessionDao, settingsRepository)
-                    }
-                    this@MainActivity.viewModel = viewModel
 
                     LaunchedEffect(cruisingService) {
                         cruisingService?.cruisingData?.collect { data ->
@@ -219,7 +251,8 @@ class MainActivity : ComponentActivity() {
                                 rememberViewModelStoreNavEntryDecorator()
                             ),
                             transitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
+                                val routes =
+                                    listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -234,7 +267,8 @@ class MainActivity : ComponentActivity() {
                                         ) + fadeOut(animationSpec = tween(300))
                             },
                             popTransitionSpec = {
-                                val routes = listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
+                                val routes =
+                                    listOf(DashboardRoute, MapRoute, ChartsRoute, HistoryRoute)
                                 val initialIndex = routes.indexOf(initialState.key)
                                 val targetIndex = routes.indexOf(targetState.key)
                                 val direction = if (targetIndex >= initialIndex) 1 else -1
@@ -251,9 +285,10 @@ class MainActivity : ComponentActivity() {
                             entryProvider = { key ->
                                 when (key) {
                                     is DashboardRoute -> NavEntry(key) {
+                                        val cruisingState by viewModel.uiState.collectAsState()
                                         DashboardScreen(
                                             viewModel = viewModel,
-                                            isServiceRunning = isBound,
+                                            isServiceRunning = cruisingState.isTracking,
                                             onStartService = {
                                                 viewModel.exitHistoryMode()
                                                 startCruisingService()
@@ -264,12 +299,15 @@ class MainActivity : ComponentActivity() {
                                             onOpenSettings = onSettingsClick
                                         )
                                     }
+
                                     is MapRoute -> NavEntry(key) {
                                         MapScreen(viewModel = viewModel)
                                     }
+
                                     is ChartsRoute -> NavEntry(key) {
                                         io.github.tsuyokuro.cymeter.ui.ChartsScreen(viewModel = viewModel)
                                     }
+
                                     is HistoryRoute -> NavEntry(key) {
                                         HistoryScreen(
                                             viewModel = viewModel,
@@ -279,6 +317,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
                                     }
+
                                     is SettingsRoute -> NavEntry(key) {
                                         SettingsScreen(
                                             viewModel = viewModel,
@@ -287,6 +326,7 @@ class MainActivity : ComponentActivity() {
                                             onImportDatabase = { importLauncher.launch(arrayOf("*/*")) }
                                         )
                                     }
+
                                     else -> error("Unknown route $key")
                                 }
                             }
@@ -302,12 +342,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startCruisingService() {
+        viewModel.setTracking(true)
         val intent = Intent(this, CruisingService::class.java)
         startForegroundService(intent)
         bindService(intent, connection, BIND_AUTO_CREATE)
     }
 
     private fun stopCruisingService() {
+        viewModel.setTracking(false)
         if (isBound) {
             unbindService(connection)
             isBound = false

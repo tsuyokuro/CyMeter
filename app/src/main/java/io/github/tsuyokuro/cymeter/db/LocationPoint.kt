@@ -26,6 +26,5 @@ data class LocationPoint(
     val speed: Float,
     val avgSpeed: Float,
     val totalDistanceMeters: Float,
-    val movingTimeMillis: Long,
     val timestamp: Long
 )

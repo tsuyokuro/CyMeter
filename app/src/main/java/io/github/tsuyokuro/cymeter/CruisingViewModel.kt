@@ -1,17 +1,17 @@
 package io.github.tsuyokuro.cymeter
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.db.LocationDao
 import io.github.tsuyokuro.cymeter.db.LocationPoint
 import io.github.tsuyokuro.cymeter.db.Session
 import io.github.tsuyokuro.cymeter.db.SessionDao
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +33,10 @@ class CruisingViewModel(
     private val sessionDao: SessionDao,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    companion object {
+        const val MAX_CHART_SAMPLE_COUNT = 200
+    }
 
     private val _uiState = MutableStateFlow(CruisingService.CruisingState())
     val uiState: StateFlow<CruisingService.CruisingState> = _uiState.asStateFlow()
@@ -56,10 +60,18 @@ class CruisingViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val speedThresholdKmh: StateFlow<Float> = settingsRepository.speedThresholdFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_SPEED_THRESHOLD_KMH)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            SettingsRepository.DEFAULT_SPEED_THRESHOLD_KMH
+        )
 
     val distanceLabelIntervalKm: StateFlow<Float> = settingsRepository.distanceLabelIntervalFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_DISTANCE_LABEL_INTERVAL_KM)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            SettingsRepository.DEFAULT_DISTANCE_LABEL_INTERVAL_KM
+        )
 
     init {
         loadLastSession()
@@ -74,7 +86,7 @@ class CruisingViewModel(
     val selectedLocationPoint: StateFlow<LocationPoint?> = _selectedLocationPoint.asStateFlow()
     private var isUserSelected = false
 
-    private fun toChartsDistance(v: Float) : Float {
+    private fun toChartsDistance(v: Float): Float {
         return round(v / 1000f * 10000f) / 10000f
     }
 
@@ -85,7 +97,7 @@ class CruisingViewModel(
         isUserSelected = true
         // Find the point with the closest totalDistanceMeters (converted to km)
         val targetDistanceKm = x.toFloat()
-        val closestPoint = points.minByOrNull { 
+        val closestPoint = points.minByOrNull {
             kotlin.math.abs(toChartsDistance(it.totalDistanceMeters) - targetDistanceKm)
         }
         _selectedLocationPoint.value = closestPoint
@@ -113,10 +125,11 @@ class CruisingViewModel(
                 .distinctBy { toChartsDistance(it.totalDistanceMeters) }
                 .sortedBy { it.totalDistanceMeters }
                 .let { list ->
-                    if (list.size > 500) {
-                        // 500sampleを超える場合は、500に減らす
-                        val step = list.size / 500.0
-                        (0 until 500).map { i ->
+                    if (list.size > MAX_CHART_SAMPLE_COUNT) {
+                        // サンプル数がmaxChartSampleCountを超える場合は、
+                        // maxChartSampleCountになるように間引く
+                        val step = list.size / MAX_CHART_SAMPLE_COUNT.toFloat()
+                        (0 until MAX_CHART_SAMPLE_COUNT).map { i ->
                             list[(i * step).toInt().coerceAtMost(list.lastIndex)]
                         }.distinctBy { toChartsDistance(it.totalDistanceMeters) }
                     } else {
@@ -157,9 +170,10 @@ class CruisingViewModel(
                     avgCruisingSpeed = lastSession.avgSpeed,
                     maxSpeed = lastSession.maxSpeed,
                     distanceKm = lastSession.totalDistance / 1000f,
-                    movingTimeMillis = lastSession.totalMovingTime,
-                    currentSpeed = 0f,
-                    isMoving = false
+                    representativeCruisingSpeed = lastSession.representativeCruisingSpeed,
+                    bestSegmentSpeed = lastSession.bestSegmentSpeed,
+                    bestSegmentDistance = lastSession.bestSegmentDistance,
+                    currentSpeed = 0f
                 )
             }
         }
@@ -174,6 +188,10 @@ class CruisingViewModel(
         }
     }
 
+    fun setTracking(isTracking: Boolean) {
+        _uiState.value = _uiState.value.copy(isTracking = isTracking)
+    }
+
     fun selectHistoricalSession(sessionId: Long) {
         isUserSelected = false
         _selectedLocationPoint.value = null
@@ -185,9 +203,10 @@ class CruisingViewModel(
                     avgCruisingSpeed = session.avgSpeed,
                     maxSpeed = session.maxSpeed,
                     distanceKm = session.totalDistance / 1000f,
-                    movingTimeMillis = session.totalMovingTime,
+                    representativeCruisingSpeed = session.representativeCruisingSpeed,
+                    bestSegmentSpeed = session.bestSegmentSpeed,
+                    bestSegmentDistance = session.bestSegmentDistance,
                     isViewingHistory = true,
-                    isMoving = false,
                     currentSpeed = 0f
                 )
             }
@@ -201,10 +220,11 @@ class CruisingViewModel(
     fun resetData(cruisingService: CruisingService?) {
         isUserSelected = false
         _selectedLocationPoint.value = null
+        val currentTracking = _uiState.value.isTracking
         // Reset the service if it's running
         cruisingService?.resetData()
         // Reset the local state
-        _uiState.value = CruisingService.CruisingState()
+        _uiState.value = CruisingService.CruisingState(isTracking = currentTracking)
     }
 
     fun deleteSession(session: Session) {
@@ -212,7 +232,7 @@ class CruisingViewModel(
             sessionDao.delete(session)
             // Also delete points associated with this session to keep DB clean
             locationDao.deletePointsBySessionId(session.id)
-            
+
             // If the deleted session is the current one, reset the UI state
             if (_uiState.value.sessionId == session.id) {
                 _uiState.value = CruisingService.CruisingState()
@@ -251,7 +271,12 @@ class CruisingViewModel(
         }
     }
 
-    fun importDatabase(context: Context, contentResolver: ContentResolver, uri: Uri, onComplete: () -> Unit) {
+    fun importDatabase(
+        context: Context,
+        contentResolver: ContentResolver,
+        uri: Uri,
+        onComplete: () -> Unit
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 AppDatabase.closeDatabase()

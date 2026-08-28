@@ -1,28 +1,44 @@
 package io.github.tsuyokuro.cymeter.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Terrain
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.tsuyokuro.cymeter.CruisingViewModel
-import io.github.tsuyokuro.cymeter.db.LocationPoint
-import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarker
-import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Terrain
-import androidx.compose.material.icons.rounded.Place
-import androidx.compose.ui.res.stringResource
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.BaseAxis
@@ -32,13 +48,18 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProdu
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
+import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.Fill
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import androidx.compose.ui.text.TextStyle
+import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.R
+import io.github.tsuyokuro.cymeter.db.LocationPoint
 
 @Composable
 fun ChartsScreen(
@@ -113,17 +134,21 @@ fun ChartsScreen(
                 onMarkerShown = { viewModel.selectPointByX(it) }
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
 object ChartColors {
-    val speedLine = Color(red=0.5f, green = 1.0f, blue=0.0f, alpha = 0.4f)
-    val speedFill = Color(red=0.5f, green = 1.0f, blue=0.0f, alpha = 0.4f)
-    val avgSpeedLine = Color(red=1.0f, green = 0.5f, blue=0.0f, alpha = 0.5f)
-    val altitudeLine = Color(red=0.0f, green = 0.5f, blue=1.0f, alpha = 0.3f)
-    val altitudeFill = Color(red=0.0f, green = 0.5f, blue=1.0f, alpha = 0.3f)
+    val speedLine = Color(red = 0.5f, green = 1.0f, blue = 0.0f, alpha = 0.4f)
+    val speedFill = Color(red = 0.5f, green = 1.0f, blue = 0.0f, alpha = 0.4f)
+    val avgSpeedLine = Color(red = 1.0f, green = 0.5f, blue = 0.0f, alpha = 0.5f)
+    val altitudeLine = Color(red = 0.0f, green = 0.5f, blue = 1.0f, alpha = 0.3f)
+    val altitudeFill = Color(red = 0.0f, green = 0.5f, blue = 1.0f, alpha = 0.3f)
+}
+
+object ChartDimension {
+    val hostCardHeight = 200.0.dp
 }
 
 @Composable
@@ -154,8 +179,45 @@ fun ChartsContent(
         )
     )
 
-    val marker1 = rememberMarker()
-    val marker2 = rememberMarker()
+    val speedMarkerValueFormatter = remember {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            buildAnnotatedString {
+                if (targets.isNotEmpty()) {
+                    append("%.1f:".format(targets[0].x))
+                    targets.forEach { target ->
+                        (target as? LineCartesianLayerMarkerTarget)?.points?.forEachIndexed { index, point ->
+                            withStyle(SpanStyle(color = point.color)) {
+                                append("■")
+                            }
+                            append("%.1f".format(point.entry.y))
+                            if (index != target.points.lastIndex) append(",")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val altitudeMarkerValueFormatter = remember {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            buildAnnotatedString {
+                if (targets.isNotEmpty()) {
+                    append("%.1f:".format(targets[0].x))
+                    targets.forEach { target ->
+                        (target as? LineCartesianLayerMarkerTarget)?.points?.forEach { point ->
+                            withStyle(SpanStyle(color = point.color)) {
+                                append("■")
+                            }
+                            append("%.0f".format(point.entry.y))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val marker1 = rememberMarker(valueFormatter = speedMarkerValueFormatter)
+    val marker2 = rememberMarker(valueFormatter = altitudeMarkerValueFormatter)
 
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
         // Speed Chart
@@ -165,12 +227,21 @@ fun ChartsContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.charts_screen_speed_chart_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Row() {
+                    Text(
+                        text = stringResource(R.string.charts_screen_speed_chart_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Legend(
+                        items = listOf(
+                            LegendItem("Speed", ChartColors.speedFill),
+                            LegendItem("Avg Speed", ChartColors.avgSpeedLine)
+                        )
+                    )
+                }
 
                 CartesianChartHost(
                     chart = rememberCartesianChart(
@@ -178,7 +249,7 @@ fun ChartsContent(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
                                     fill = LineCartesianLayer.LineFill.single(Fill(ChartColors.speedLine)),
-                                    areaFill =  LineCartesianLayer.AreaFill.single(
+                                    areaFill = LineCartesianLayer.AreaFill.single(
                                         fill = Fill(ChartColors.speedFill)
                                     ),
                                     interpolator = LineCartesianLayer.Interpolator.catmullRom(),
@@ -209,14 +280,7 @@ fun ChartsContent(
                     zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp)
-                )
-
-                Legend(
-                    items = listOf(
-                        LegendItem("Speed", MaterialTheme.colorScheme.primary),
-                        LegendItem("Avg Speed", MaterialTheme.colorScheme.secondary)
-                    )
+                        .height(ChartDimension.hostCardHeight)
                 )
             }
         }
@@ -228,12 +292,19 @@ fun ChartsContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.charts_screen_altitude_chart_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Row() {
+                    Text(
+                        text = stringResource(R.string.charts_screen_altitude_chart_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Legend(
+                        items = listOf(
+                            LegendItem("Altitude", ChartColors.altitudeFill)
+                        )
+                    )
+                }
 
                 CartesianChartHost(
                     chart = rememberCartesianChart(
@@ -241,7 +312,7 @@ fun ChartsContent(
                             lineProvider = LineCartesianLayer.LineProvider.series(
                                 LineCartesianLayer.rememberLine(
                                     fill = LineCartesianLayer.LineFill.single(Fill(ChartColors.altitudeLine)),
-                                    areaFill =  LineCartesianLayer.AreaFill.single(
+                                    areaFill = LineCartesianLayer.AreaFill.single(
                                         fill = Fill(ChartColors.altitudeFill)
                                     ),
                                     interpolator = LineCartesianLayer.Interpolator.catmullRom(),
@@ -268,13 +339,7 @@ fun ChartsContent(
                     zoomState = zoomState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(250.dp)
-                )
-
-                Legend(
-                    items = listOf(
-                        LegendItem("Altitude", MaterialTheme.colorScheme.tertiary)
-                    )
+                        .height(ChartDimension.hostCardHeight)
                 )
             }
         }
@@ -330,12 +395,6 @@ fun SelectedPointDetails(point: LocationPoint) {
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Time: ${formatMovingTime(point.movingTimeMillis)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-            )
         }
     }
 }

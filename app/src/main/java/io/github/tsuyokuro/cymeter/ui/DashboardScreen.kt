@@ -16,13 +16,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -60,9 +59,9 @@ fun DashboardScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cruisingData : CruisingService.CruisingState
-        by viewModel.uiState.collectAsStateWithLifecycle()
-    
+    val cruisingData: CruisingService.CruisingState
+            by viewModel.uiState.collectAsStateWithLifecycle()
+
     DashboardContent(
         cruisingData,
         isServiceRunning,
@@ -157,6 +156,28 @@ fun DashboardContent(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+                item {
+                    val heldTag = if (cruisingData.isRollingSpeedHeld) " " + stringResource(R.string.dashboard_rolling_held_tag) else ""
+                    StatCard(
+                        title = stringResource(R.string.dashboard_cruising_speed),
+                        value = "%.1f".format(cruisingData.rollingCruisingSpeed * 3.6),
+                        unit = "km/h$heldTag",
+                        icon = Icons.AutoMirrored.Rounded.DirectionsBike,
+                        color = if (cruisingData.isRollingSpeedHeld) 
+                            MaterialTheme.colorScheme.outline 
+                        else 
+                            MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_rep_cruising_speed),
+                    value = "%.1f".format(cruisingData.representativeCruisingSpeed * 3.6),
+                    unit = "km/h",
+                    icon = Icons.AutoMirrored.Rounded.TrendingUp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
             item {
                 StatCard(
@@ -164,7 +185,7 @@ fun DashboardContent(
                     value = "%.1f".format(cruisingData.avgCruisingSpeed * 3.6),
                     unit = "km/h",
                     icon = Icons.Rounded.History,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
             item {
@@ -178,24 +199,12 @@ fun DashboardContent(
             }
             item {
                 StatCard(
-                    title = stringResource(R.string.dashboard_moving_time),
-                    value = formatMovingTime(cruisingData.movingTimeMillis),
-                    unit = "",
-                    icon = Icons.Rounded.Timer,
-                    color = MaterialTheme.colorScheme.tertiary
+                    title = stringResource(R.string.dashboard_best_segment),
+                    value = "%.1f".format(cruisingData.bestSegmentSpeed * 3.6),
+                    unit = "km/h (%.2f km)".format(cruisingData.bestSegmentDistance / 1000f),
+                    icon = Icons.Rounded.Star,
+                    color = Color(0xFFFFC107) // Gold-ish
                 )
-            }
-            if (!cruisingData.isViewingHistory) {
-                item {
-                    val statusColor = if (cruisingData.isMoving) Color(0xFF4CAF50) else Color(0xFFFFC107)
-                    StatCard(
-                        title = stringResource(R.string.dashboard_status),
-                        value = if (cruisingData.isMoving) "Moving" else "Stopped",
-                        unit = "",
-                        icon = if (cruisingData.isMoving) Icons.AutoMirrored.Rounded.DirectionsBike else Icons.Rounded.PauseCircle,
-                        color = statusColor
-                    )
-                }
             }
             item {
                 StatCard(
@@ -311,13 +320,6 @@ fun StatCard(
             }
         }
     }
-}
-
-fun formatMovingTime(millis: Long): String {
-    val seconds = (millis / 1000) % 60
-    val minutes = (millis / (1000 * 60)) % 60
-    val hours = (millis / (1000 * 60 * 60))
-    return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
