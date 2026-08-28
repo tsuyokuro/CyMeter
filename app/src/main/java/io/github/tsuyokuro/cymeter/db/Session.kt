@@ -10,5 +10,8 @@ data class Session(
     val endTime: Long = 0,
     val avgSpeed: Float = 0f,
     val totalDistance: Float = 0f,
-    val maxSpeed: Float = 0f
+    val maxSpeed: Float = 0f,
+    val representativeCruisingSpeed: Float = 0f,
+    val bestSegmentSpeed: Float = 0f,
+    val bestSegmentDistance: Float = 0f
 )

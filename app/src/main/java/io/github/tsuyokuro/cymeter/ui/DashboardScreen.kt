@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsBike
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -154,6 +156,28 @@ fun DashboardContent(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+                item {
+                    val heldTag = if (cruisingData.isRollingSpeedHeld) " " + stringResource(R.string.dashboard_rolling_held_tag) else ""
+                    StatCard(
+                        title = stringResource(R.string.dashboard_cruising_speed),
+                        value = "%.1f".format(cruisingData.rollingCruisingSpeed * 3.6),
+                        unit = "km/h$heldTag",
+                        icon = Icons.AutoMirrored.Rounded.DirectionsBike,
+                        color = if (cruisingData.isRollingSpeedHeld) 
+                            MaterialTheme.colorScheme.outline 
+                        else 
+                            MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_rep_cruising_speed),
+                    value = "%.1f".format(cruisingData.representativeCruisingSpeed * 3.6),
+                    unit = "km/h",
+                    icon = Icons.AutoMirrored.Rounded.TrendingUp,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
             item {
                 StatCard(
@@ -161,7 +185,7 @@ fun DashboardContent(
                     value = "%.1f".format(cruisingData.avgCruisingSpeed * 3.6),
                     unit = "km/h",
                     icon = Icons.Rounded.History,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
             item {
@@ -171,6 +195,15 @@ fun DashboardContent(
                     unit = "km/h",
                     icon = Icons.AutoMirrored.Rounded.TrendingUp,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_best_segment),
+                    value = "%.1f".format(cruisingData.bestSegmentSpeed * 3.6),
+                    unit = "km/h (%.2f km)".format(cruisingData.bestSegmentDistance / 1000f),
+                    icon = Icons.Rounded.Star,
+                    color = Color(0xFFFFC107) // Gold-ish
                 )
             }
             item {

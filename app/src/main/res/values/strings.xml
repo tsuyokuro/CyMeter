@@ -5,7 +5,11 @@
     <string name="dashboard_title">Cruising Dashboard</string>
     <string name="dashboard_viewing_history_session">Viewing History Session</string>
     <string name="dashboard_current_speed">Current Speed</string>
-    <string name="dashboard_avg_speed">Avg Speed</string>
+    <string name="dashboard_cruising_speed">Cruising Speed</string>
+    <string name="dashboard_rolling_held_tag">(Held)</string>
+    <string name="dashboard_avg_speed">Avg Speed (Total)</string>
+    <string name="dashboard_rep_cruising_speed">Avg Cruising Speed</string>
+    <string name="dashboard_best_segment">Best Segment</string>
     <string name="dashboard_max_speed">Max Speed</string>
     <string name="dashboard_moving_time">Moving Time</string>
     <string name="dashboard_status">Status</string>
