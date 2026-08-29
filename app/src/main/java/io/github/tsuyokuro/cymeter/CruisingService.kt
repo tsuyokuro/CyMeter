@@ -29,13 +29,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.sqrt
 
 class CruisingService : Service() {
 
     companion object {
-        private const val SPEED_LPF_ALPHA = 0.5f
-
         private const val DISTANCE_TIME_INTERVAL_MS = 2000L
         private const val SAVE_DISTANCE_THRESHOLD_METERS = 2.0f
         private const val SAVE_TIME_FALLBACK_MS = 30000L
@@ -70,7 +67,7 @@ class CruisingService : Service() {
     private var speedSamplesCount: Long = 0
     private var maxSpeedInternal: Float = 0.0f
 
-    private var lpfSpeed = 0.0f
+    private var lastSpeed = 0.0f
 
     private var lastDistanceLocation: Location? = null
     private var totalDistanceMeters: Float = 0.0f
@@ -258,7 +255,7 @@ class CruisingService : Service() {
                     latitude = lastDistanceLocation!!.latitude,
                     longitude = lastDistanceLocation!!.longitude,
                     altitude = lastDistanceLocation!!.altitude,
-                    speed = lpfSpeed,
+                    speed = lastSpeed,
                     avgSpeed = avgSpeed,
                     totalDistanceMeters = totalDistanceMeters,
                     timestamp = currentTime
@@ -383,10 +380,9 @@ class CruisingService : Service() {
     }
 
     private fun trackLocation(location: Location) {
+        lastSpeed = location.speed
 
-        lpfSpeed = SPEED_LPF_ALPHA * lpfSpeed + (1.0f - SPEED_LPF_ALPHA) * location.speed
-
-        val speed = lpfSpeed
+        val speed = lastSpeed
         val currentTime = System.currentTimeMillis()
 
         if (speed > maxSpeedInternal) {
@@ -527,7 +523,7 @@ class CruisingService : Service() {
             latitude = location.latitude,
             longitude = location.longitude,
             altitude = location.altitude,
-            speed = lpfSpeed,
+            speed = lastSpeed,
             avgSpeed = avgSpeed,
             totalDistanceMeters = totalDistanceMeters,
             timestamp = timestamp
