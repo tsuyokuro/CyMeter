@@ -102,8 +102,7 @@ class CruisingViewModelTest {
             startTime = 1000L,
             avgSpeed = 15f,
             maxSpeed = 30f,
-            totalDistance = 5000f,
-            totalMovingTime = 120000L
+            totalDistance = 5000f
         )
         coEvery { sessionDao.getSessionById(1L) } returns session
 
@@ -142,7 +141,6 @@ class CruisingViewModelTest {
         viewModel.resetData(null)
 
         assertEquals(true, viewModel.uiState.value.isTracking)
-        assertEquals(0L, viewModel.uiState.value.movingTimeMillis)
     }
 
     @Test
@@ -159,7 +157,6 @@ class CruisingViewModelTest {
                 speed = 5f,
                 avgSpeed = 4f,
                 totalDistanceMeters = 100f,
-                movingTimeMillis = 1000,
                 timestamp = 10000
             )
         )
@@ -173,7 +170,6 @@ class CruisingViewModelTest {
                 speed = 10f,
                 avgSpeed = 8f,
                 totalDistanceMeters = 200f,
-                movingTimeMillis = 2000,
                 timestamp = 20000
             )
         )
