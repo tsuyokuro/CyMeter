@@ -275,7 +275,9 @@ class CruisingService : Service() {
                         totalDistance = totalDistanceMeters,
                         representativeCruisingSpeed = repCruisingSpeed,
                         bestSegmentSpeed = bestSegSpeed,
-                        bestSegmentDistance = bestSegDist
+                        bestSegmentDistance = bestSegDist,
+                        bestSegmentStartKm = bestSegStart,
+                        bestSegmentEndKm = bestSegEnd
                     )
                 )
             }
