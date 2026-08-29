@@ -173,6 +173,8 @@ class CruisingViewModel(
                     representativeCruisingSpeed = lastSession.representativeCruisingSpeed,
                     bestSegmentSpeed = lastSession.bestSegmentSpeed,
                     bestSegmentDistance = lastSession.bestSegmentDistance,
+                    bestSegmentStartKm = lastSession.bestSegmentStartKm,
+                    bestSegmentEndKm = lastSession.bestSegmentEndKm,
                     currentSpeed = 0f
                 )
             }
@@ -206,6 +208,8 @@ class CruisingViewModel(
                     representativeCruisingSpeed = session.representativeCruisingSpeed,
                     bestSegmentSpeed = session.bestSegmentSpeed,
                     bestSegmentDistance = session.bestSegmentDistance,
+                    bestSegmentStartKm = session.bestSegmentStartKm,
+                    bestSegmentEndKm = session.bestSegmentEndKm,
                     isViewingHistory = true,
                     currentSpeed = 0f
                 )
