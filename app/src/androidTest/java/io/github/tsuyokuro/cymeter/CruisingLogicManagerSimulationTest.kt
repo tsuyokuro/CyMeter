@@ -19,22 +19,17 @@ import java.io.FileInputStream
  */
 @RunWith(AndroidJUnit4::class)
 class CruisingLogicManagerSimulationTest {
-
     private val TAG = "SimulationTest"
 
     enum class DataSource { DOWNLOAD, ASSETS }
 
-    // Toggle this to switch between Download folder and Assets
-    private val currentDataSource = DataSource.ASSETS
-
-    @Test
-    fun simulateLastSession() = runBlocking {
+    fun getDataBase(source : DataSource) : AppDatabase? {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
 
         val testDbFile = context.getDatabasePath("simulation_temp.db")
-        
-        val success = when (currentDataSource) {
+
+        val success = when (source) {
             DataSource.DOWNLOAD -> copyBackupFromDownload(
                 instrumentation = instrumentation,
                 backupFileName = "cymeter_backup.db",
@@ -50,11 +45,11 @@ class CruisingLogicManagerSimulationTest {
 
         if (!success) {
             Log.e(TAG, "Simulation aborted due to database preparation failure.")
-            return@runBlocking
+            return null
         }
 
         Log.i(TAG, "Opening temporary database (${testDbFile.length()} bytes)...")
-        
+
         // Open the temporary file as a Room database
         val database = Room.databaseBuilder(
             context,
@@ -63,7 +58,17 @@ class CruisingLogicManagerSimulationTest {
         )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
-            
+
+        return database
+    }
+
+    @Test
+    fun simulateLastSession() = runBlocking {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+
+        val database = getDataBase(DataSource.ASSETS) ?: return@runBlocking
+
         val sessionDao = database.sessionDao()
         val locationDao = database.locationDao()
 
@@ -115,7 +120,7 @@ class CruisingLogicManagerSimulationTest {
 
         // 5. Get final summary
         val finalResult = logicManager.stop(System.currentTimeMillis()) // timestamp doesn't matter much here if already at end
-        
+
         Log.i(TAG, "=== SIMULATION FINAL SUMMARY ===")
         Log.i(TAG, "Total Distance: %.3f km".format(finalResult.totalDistanceMeters / 1000f))
         Log.i(TAG, "Total Avg Speed: %.2f km/h".format(finalResult.avgSpeed * 3.6f))
@@ -126,7 +131,7 @@ class CruisingLogicManagerSimulationTest {
             finalResult.bestSegmentEndKm,
             finalResult.bestSegmentDistance / 1000f
         ))
-    // 6. Close database
+        // 6. Close database
         database.close()
     }
 
