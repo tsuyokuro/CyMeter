@@ -1,5 +1,6 @@
 package io.github.tsuyokuro.cymeter
 
+import android.content.Context
 import android.os.Environment
 import android.util.Log
 import androidx.room.Room
@@ -11,7 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
 
 /**
  * Instrumental test that simulates a ride using data from the actual database on the device.
@@ -22,31 +22,44 @@ class CruisingLogicManagerSimulationTest {
 
     private val TAG = "SimulationTest"
 
+    enum class DataSource { DOWNLOAD, ASSETS }
+
+    // Toggle this to switch between Download folder and Assets
+    private val currentDataSource = DataSource.ASSETS
+
     @Test
     fun simulateLastSession() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
 
-        val internalDbFile = context.getDatabasePath("simulation_temp.db")
+        val testDbFile = context.getDatabasePath("simulation_temp.db")
         
-        val success = copyBackupToInternal(
-            instrumentation = instrumentation,
-            backupFileName = "cymeter_backup.db",
-            targetFile = internalDbFile
-        )
+        val success = when (currentDataSource) {
+            DataSource.DOWNLOAD -> copyBackupFromDownload(
+                instrumentation = instrumentation,
+                backupFileName = "cymeter_backup.db",
+                targetFile = testDbFile
+            )
+            DataSource.ASSETS -> copyBackupFromAssets(
+                // Use test context for androidTest assets
+                assetContext = instrumentation.context,
+                assetPath = "test_data/cymeter_backup_1.db",
+                targetFile = testDbFile
+            )
+        }
 
         if (!success) {
-            Log.e(TAG, "Simulation aborted due to database copy failure.")
+            Log.e(TAG, "Simulation aborted due to database preparation failure.")
             return@runBlocking
         }
 
-        Log.i(TAG, "Opening temporary database (${internalDbFile.length()} bytes)...")
+        Log.i(TAG, "Opening temporary database (${testDbFile.length()} bytes)...")
         
         // Open the temporary file as a Room database
         val database = Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            internalDbFile.absolutePath
+            testDbFile.absolutePath
         )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
@@ -117,7 +130,7 @@ class CruisingLogicManagerSimulationTest {
         database.close()
     }
 
-    private fun copyBackupToInternal(
+    private fun copyBackupFromDownload(
         instrumentation: android.app.Instrumentation,
         backupFileName: String,
         targetFile: File
@@ -156,6 +169,38 @@ class CruisingLogicManagerSimulationTest {
             true
         } else {
             Log.e(TAG, "Database copy failed: target file empty or not found")
+            false
+        }
+    }
+
+    private fun copyBackupFromAssets(
+        assetContext: Context,
+        assetPath: String,
+        targetFile: File
+    ): Boolean {
+        targetFile.parentFile?.mkdirs()
+        Log.i(TAG, "Copying database from Assets: $assetPath")
+        try {
+            assetContext.assets.open(assetPath).use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy from assets: ${e.message}")
+            // Log available assets for debugging if not found
+            try {
+                val list = assetContext.assets.list("test_data")
+                Log.d(TAG, "Assets in 'test_data': ${list?.joinToString()}")
+            } catch (_: Exception) {}
+            return false
+        }
+
+        return if (targetFile.exists() && targetFile.length() > 0L) {
+            Log.i(TAG, "Asset copy successful: ${targetFile.length()} bytes")
+            true
+        } else {
+            Log.e(TAG, "Asset copy failed: target file empty or not found")
             false
         }
     }
