@@ -163,19 +163,28 @@ fun DashboardContent(
                         value = "%.1f".format(cruisingData.rollingCruisingSpeed * 3.6),
                         unit = "km/h$heldTag",
                         icon = Icons.AutoMirrored.Rounded.DirectionsBike,
-                        color = if (cruisingData.isRollingSpeedHeld) 
-                            MaterialTheme.colorScheme.outline 
-                        else 
+                        color = if (cruisingData.isRollingSpeedHeld)
+                            MaterialTheme.colorScheme.outline
+                        else
                             MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
             item {
                 StatCard(
-                    title = stringResource(R.string.dashboard_rep_cruising_speed),
-                    value = "%.1f".format(cruisingData.representativeCruisingSpeed * 3.6),
+                    title = stringResource(R.string.dashboard_max_speed),
+                    value = "%.1f".format(cruisingData.maxSpeed * 3.6),
                     unit = "km/h",
                     icon = Icons.AutoMirrored.Rounded.TrendingUp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_total_distance),
+                    value = "%.2f".format(cruisingData.distanceKm),
+                    unit = "km",
+                    icon = Icons.Rounded.Route,
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
@@ -190,29 +199,27 @@ fun DashboardContent(
             }
             item {
                 StatCard(
-                    title = stringResource(R.string.dashboard_max_speed),
-                    value = "%.1f".format(cruisingData.maxSpeed * 3.6),
+                    title = stringResource(R.string.dashboard_rep_cruising_speed),
+                    value = "%.1f".format(cruisingData.representativeCruisingSpeed * 3.6),
                     unit = "km/h",
                     icon = Icons.AutoMirrored.Rounded.TrendingUp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
-            item {
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 StatCard(
                     title = stringResource(R.string.dashboard_best_segment),
                     value = "%.1f".format(cruisingData.bestSegmentSpeed * 3.6),
-                    unit = "km/h (%.2f km)".format(cruisingData.bestSegmentDistance / 1000f),
+                    unit = "km/h",
                     icon = Icons.Rounded.Star,
-                    color = Color(0xFFFFC107) // Gold-ish
-                )
-            }
-            item {
-                StatCard(
-                    title = stringResource(R.string.dashboard_total_distance),
-                    value = "%.2f".format(cruisingData.distanceKm),
-                    unit = "km",
-                    icon = Icons.Rounded.Route,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = Color(0xFFFFC107), // Gold-ish
+                    secondaryValue = if (cruisingData.bestSegmentDistance > 0) {
+                        "%.2f km - %.2f km (%.2f km)".format(
+                            cruisingData.bestSegmentStartKm,
+                            cruisingData.bestSegmentEndKm,
+                            cruisingData.bestSegmentDistance / 1000f
+                        )
+                    } else null
                 )
             }
         }
@@ -270,7 +277,8 @@ fun StatCard(
     unit: String,
     icon: ImageVector,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    secondaryValue: String? = null
 ) {
     ElevatedCard(
         modifier = modifier.fillMaxWidth(),
@@ -285,19 +293,25 @@ fun StatCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             Row(
                 verticalAlignment = Alignment.Bottom,
@@ -317,6 +331,13 @@ fun StatCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+            if (secondaryValue != null) {
+                Text(
+                    text = secondaryValue,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
             }
         }
     }

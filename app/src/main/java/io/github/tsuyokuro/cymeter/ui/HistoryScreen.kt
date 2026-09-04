@@ -26,17 +26,23 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.tsuyokuro.cymeter.CruisingViewModel
 import io.github.tsuyokuro.cymeter.R
+import io.github.tsuyokuro.cymeter.db.AppDatabase
 import io.github.tsuyokuro.cymeter.db.Session
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.log10
+import kotlin.math.pow
 
 @Composable
 fun HistoryScreen(
@@ -45,13 +51,32 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val sessions by viewModel.allSessions.collectAsState()
+    val context = LocalContext.current
+
+    val dbStats = remember(sessions) {
+        val db = AppDatabase.getDatabase(context)
+        val version = db.openHelper.readableDatabase.version
+        val dbPath = AppDatabase.getDatabasePath(context)
+        val file = File(dbPath)
+        val size = if (file.exists()) file.length() else 0L
+        version to size
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
             TopAppBar(
-                title = { Text(stringResource(R.string.history_screen_title)) }
+                title = {
+                    Column {
+                        Text(stringResource(R.string.history_screen_title))
+                        Text(
+                            text = "v${dbStats.first} | ${formatFileSize(dbStats.second)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
         }
     ) { innerPadding ->
@@ -86,6 +111,18 @@ fun HistoryScreen(
             }
         }
     }
+}
+
+fun formatFileSize(size: Long): String {
+    if (size <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
+    return String.format(
+        Locale.getDefault(),
+        "%.1f %s",
+        size / 1024.0.pow(digitGroups.toDouble()),
+        units[digitGroups]
+    )
 }
 
 @Composable

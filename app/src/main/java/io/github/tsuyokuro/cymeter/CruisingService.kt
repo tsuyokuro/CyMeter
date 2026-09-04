@@ -29,25 +29,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.sqrt
 
 class CruisingService : Service() {
 
     companion object {
-        private const val SPEED_LPF_ALPHA = 0.5f
-
         private const val DISTANCE_TIME_INTERVAL_MS = 2000L
         private const val SAVE_DISTANCE_THRESHOLD_METERS = 2.0f
         private const val SAVE_TIME_FALLBACK_MS = 30000L
-
-        private const val ROLLING_WINDOW_MS = 30000L
-        private const val MIN_SEGMENT_DURATION_MS = 60000L
     }
 
     private val binder = LocalBinder()
 
     private lateinit var settingsRepository: SettingsRepository
-    private var speedThresholdMps: Float = 5.0f / 3.6f
+    private lateinit var logicManager: CruisingLogicManager
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
@@ -66,31 +60,10 @@ class CruisingService : Service() {
     private val _cruisingData = MutableStateFlow<CruisingState>(CruisingState())
     val cruisingData: StateFlow<CruisingState> = _cruisingData.asStateFlow()
 
-    private var totalSpeedSum: Double = 0.0
-    private var speedSamplesCount: Long = 0
-    private var maxSpeedInternal: Float = 0.0f
-
-    private var lpfSpeed = 0.0f
+    private var lastSpeed = 0.0f
 
     private var lastDistanceLocation: Location? = null
-    private var totalDistanceMeters: Float = 0.0f
     private var lastSavedTotalDistance: Float = -1f
-
-    // Rolling Cruising Speed
-    private val rollingSamples = java.util.ArrayDeque<Pair<Long, Float>>()
-    private var lastValidRollingSpeed: Float = 0f
-
-    // Segment Analysis
-    private var segmentStartTime: Long = 0L
-    private var segmentStartDistance: Float = 0f
-    private val validSegments = mutableListOf<CruisingSegment>()
-
-    data class CruisingSegment(
-        val durationMs: Long,
-        val distanceMeters: Float
-    ) {
-        val avgSpeed: Float get() = if (durationMs > 0) distanceMeters / (durationMs / 1000f) else 0f
-    }
 
     data class CruisingState(
         val isTracking: Boolean = false,
@@ -103,6 +76,8 @@ class CruisingService : Service() {
         val representativeCruisingSpeed: Float = 0f,
         val bestSegmentSpeed: Float = 0f,
         val bestSegmentDistance: Float = 0f,
+        val bestSegmentStartKm: Float = 0f,
+        val bestSegmentEndKm: Float = 0f,
         val sessionId: Long = 0L,
         val isViewingHistory: Boolean = false
     )
@@ -114,9 +89,11 @@ class CruisingService : Service() {
     override fun onCreate() {
         super.onCreate()
         settingsRepository = SettingsRepository(this)
+        logicManager = CruisingLogicManager(5.0f / 3.6f)
+        
         serviceScope.launch {
             settingsRepository.speedThresholdFlow.collect { thresholdKmh ->
-                speedThresholdMps = thresholdKmh / 3.6f
+                logicManager.speedThresholdMps = thresholdKmh / 3.6f
             }
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -190,11 +167,7 @@ class CruisingService : Service() {
             lastSaveLocation = null
             lastSavedTotalDistance = -1f
             
-            rollingSamples.clear()
-            lastValidRollingSpeed = 0f
-            segmentStartTime = 0L
-            segmentStartDistance = 0f
-            validSegments.clear()
+            logicManager.reset()
 
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                 .setMinUpdateIntervalMillis(500)
@@ -212,29 +185,24 @@ class CruisingService : Service() {
         }
     }
 
-    private fun stopTracking() {
+    fun stopTracking() {
         if (!isTracking) return
         isTracking = false
-        _cruisingData.value = _cruisingData.value.copy(isTracking = false)
 
         fusedLocationClient.removeLocationUpdates(locationCallback)
 
         val currentTime = System.currentTimeMillis()
-        val avgSpeed = _cruisingData.value.avgCruisingSpeed
-        val maxSpeed = maxSpeedInternal
-        
-        // Finalize current segment if valid
-        finalizeCurrentSegment(currentTime)
+        val result = logicManager.stop(currentTime)
 
-        val totalValidDistance = validSegments.sumOf { it.distanceMeters.toDouble() }.toFloat()
-        val totalValidDuration = validSegments.sumOf { it.durationMs.toDouble() }.toLong()
-        val repCruisingSpeed = if (totalValidDuration > 0) {
-            totalValidDistance / (totalValidDuration / 1000f)
-        } else 0f
-        
-        val bestSegment = validSegments.maxByOrNull { it.avgSpeed }
-        val bestSegSpeed = bestSegment?.avgSpeed ?: 0f
-        val bestSegDist = bestSegment?.distanceMeters ?: 0f
+        // Update state with final calculated values
+        _cruisingData.value = _cruisingData.value.copy(
+            isTracking = false,
+            representativeCruisingSpeed = result.representativeCruisingSpeed,
+            bestSegmentSpeed = result.bestSegmentSpeed,
+            bestSegmentDistance = result.bestSegmentDistance,
+            bestSegmentStartKm = result.bestSegmentStartKm,
+            bestSegmentEndKm = result.bestSegmentEndKm
+        )
 
         kotlinx.coroutines.runBlocking {
             if (lastDistanceLocation != null) {
@@ -243,9 +211,9 @@ class CruisingService : Service() {
                     latitude = lastDistanceLocation!!.latitude,
                     longitude = lastDistanceLocation!!.longitude,
                     altitude = lastDistanceLocation!!.altitude,
-                    speed = lpfSpeed,
-                    avgSpeed = avgSpeed,
-                    totalDistanceMeters = totalDistanceMeters,
+                    speed = lastSpeed,
+                    avgSpeed = result.avgSpeed,
+                    totalDistanceMeters = result.totalDistanceMeters,
                     timestamp = currentTime
                 )
                 database.locationDao().insert(point)
@@ -255,63 +223,49 @@ class CruisingService : Service() {
                 database.sessionDao().update(
                     session.copy(
                         endTime = currentTime,
-                        avgSpeed = avgSpeed,
-                        maxSpeed = maxSpeed,
-                        totalDistance = totalDistanceMeters,
-                        representativeCruisingSpeed = repCruisingSpeed,
-                        bestSegmentSpeed = bestSegSpeed,
-                        bestSegmentDistance = bestSegDist
+                        avgSpeed = result.avgSpeed,
+                        maxSpeed = result.maxSpeed,
+                        totalDistance = result.totalDistanceMeters,
+                        representativeCruisingSpeed = result.representativeCruisingSpeed,
+                        bestSegmentSpeed = result.bestSegmentSpeed,
+                        bestSegmentDistance = result.bestSegmentDistance,
+                        bestSegmentStartKm = result.bestSegmentStartKm,
+                        bestSegmentEndKm = result.bestSegmentEndKm
                     )
                 )
             }
         }
     }
 
-    private fun finalizeCurrentSegment(currentTime: Long) {
-        if (segmentStartTime > 0) {
-            val duration = currentTime - segmentStartTime
-            if (duration >= MIN_SEGMENT_DURATION_MS) {
-                val distance = totalDistanceMeters - segmentStartDistance
-                validSegments.add(CruisingSegment(duration, distance))
-            }
-            segmentStartTime = 0L
-            segmentStartDistance = 0f
-        }
-    }
-
     fun resetData() {
-        val lastAvgSpeed = _cruisingData.value.avgCruisingSpeed
-        val lastMaxSpeed = maxSpeedInternal
-        val lastTotalDistance = totalDistanceMeters
+        val currentTime = System.currentTimeMillis()
+        val lastState = _cruisingData.value
+        val result = logicManager.stop(currentTime)
+        
         val lastCurrentSessionId = currentSessionId
         val lastCurrentSession = currentSession
 
-        totalSpeedSum = 0.0
-        speedSamplesCount = 0
-        maxSpeedInternal = 0.0f
-        totalDistanceMeters = 0.0f
-        lastDistanceLocation = null
         lastSaveLocation = null
         lastSaveTime = 0L
         lastSavedTotalDistance = -1f
         
-        rollingSamples.clear()
-        lastValidRollingSpeed = 0f
-        segmentStartTime = 0L
-        segmentStartDistance = 0f
-        validSegments.clear()
+        logicManager.reset()
 
         serviceScope.launch {
             if (isTracking && lastCurrentSessionId != 0L) {
-                val endTime = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
                     lastCurrentSession?.let { session ->
                         database.sessionDao().update(
                             session.copy(
-                                endTime = endTime,
-                                avgSpeed = lastAvgSpeed,
-                                maxSpeed = lastMaxSpeed,
-                                totalDistance = lastTotalDistance
+                                endTime = currentTime,
+                                avgSpeed = result.avgSpeed,
+                                maxSpeed = result.maxSpeed,
+                                totalDistance = result.totalDistanceMeters,
+                                representativeCruisingSpeed = result.representativeCruisingSpeed,
+                                bestSegmentSpeed = result.bestSegmentSpeed,
+                                bestSegmentDistance = result.bestSegmentDistance,
+                                bestSegmentStartKm = result.bestSegmentStartKm,
+                                bestSegmentEndKm = result.bestSegmentEndKm
                             )
                         )
                     }
@@ -328,7 +282,7 @@ class CruisingService : Service() {
 
             _cruisingData.value = CruisingState(
                 isTracking = isTracking,
-                currentSpeed = _cruisingData.value.currentSpeed,
+                currentSpeed = lastState.currentSpeed,
                 avgCruisingSpeed = 0f,
                 maxSpeed = 0f,
                 distanceKm = 0.0f,
@@ -344,78 +298,49 @@ class CruisingService : Service() {
     }
 
     private fun trackLocation(location: Location) {
-
-        lpfSpeed = SPEED_LPF_ALPHA * lpfSpeed + (1.0f - SPEED_LPF_ALPHA) * location.speed
-
-        val speed = lpfSpeed
+        lastSpeed = location.speed
         val currentTime = System.currentTimeMillis()
 
-        if (speed > maxSpeedInternal) {
-            maxSpeedInternal = speed
-        }
-
-        if (speed > speedThresholdMps) {
-            totalSpeedSum += speed
-            speedSamplesCount++
-        }
-
-        val avgSpeed =
-            if (speedSamplesCount > 0) (totalSpeedSum / speedSamplesCount).toFloat() else 0f
-        val maxSpeed = maxSpeedInternal
-
-        totalDistanceMeters += calcDistance(lastDistanceLocation, location)
+        val distanceIncrement = calcDistance(lastDistanceLocation, location)
         lastDistanceLocation = location
-        
-        // Rolling Speed Logic
-        rollingSamples.add(currentTime to speed)
-        while (rollingSamples.isNotEmpty() && currentTime - rollingSamples.peekFirst()!!.first > ROLLING_WINDOW_MS) {
-            rollingSamples.removeFirst()
-        }
-        
-        val validRollingSamples = rollingSamples.filter { it.second >= speedThresholdMps }
-        val (rollingSpeed, isHeld) = if (validRollingSamples.isNotEmpty()) {
-            val avg = validRollingSamples.map { it.second }.average().toFloat()
-            lastValidRollingSpeed = avg
-            avg to false
-        } else {
-            lastValidRollingSpeed to true
-        }
-        
-        // Segment Logic
-        if (speed >= speedThresholdMps) {
-            if (segmentStartTime == 0L) {
-                segmentStartTime = currentTime
-                segmentStartDistance = totalDistanceMeters
-            }
-        } else {
-            finalizeCurrentSegment(currentTime)
-        }
+
+        val result = logicManager.onLocationUpdate(
+            currentTime = currentTime,
+            speed = lastSpeed,
+            distanceIncrement = distanceIncrement
+        )
 
         if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
             if (lastSavedTotalDistance == -1f ||
-                totalDistanceMeters - lastSavedTotalDistance >= SAVE_DISTANCE_THRESHOLD_METERS ||
+                result.totalDistanceMeters - lastSavedTotalDistance >= SAVE_DISTANCE_THRESHOLD_METERS ||
                 currentTime - lastSaveTime >= SAVE_TIME_FALLBACK_MS
             ) {
                 writeLocationLog(
                     currentTime,
-                    avgSpeed, maxSpeed,
-                    totalDistanceMeters,
-                    location)
+                    result.avgSpeed,
+                    result.maxSpeed,
+                    result.totalDistanceMeters,
+                    location
+                )
 
                 lastSaveLocation = location
                 lastSaveTime = currentTime
-
-                lastSavedTotalDistance = totalDistanceMeters
+                lastSavedTotalDistance = result.totalDistanceMeters
             }
         }
 
         _cruisingData.value = _cruisingData.value.copy(
-            currentSpeed = speed,
-            avgCruisingSpeed = avgSpeed,
-            rollingCruisingSpeed = rollingSpeed,
-            isRollingSpeedHeld = isHeld,
-            maxSpeed = maxSpeed,
-            distanceKm = totalDistanceMeters / 1000f
+            currentSpeed = result.currentSpeed,
+            avgCruisingSpeed = result.avgSpeed,
+            rollingCruisingSpeed = result.rollingSpeed,
+            isRollingSpeedHeld = result.isRollingHeld,
+            maxSpeed = result.maxSpeed,
+            distanceKm = result.totalDistanceMeters / 1000f,
+            representativeCruisingSpeed = result.representativeCruisingSpeed,
+            bestSegmentSpeed = result.bestSegmentSpeed,
+            bestSegmentDistance = result.bestSegmentDistance,
+            bestSegmentStartKm = result.bestSegmentStartKm,
+            bestSegmentEndKm = result.bestSegmentEndKm
         )
     }
 
@@ -426,13 +351,12 @@ class CruisingService : Service() {
         totalDistanceMeters: Float,
         location: Location
     ) {
-
         val point = LocationPoint(
             sessionId = currentSessionId,
             latitude = location.latitude,
             longitude = location.longitude,
             altitude = location.altitude,
-            speed = lpfSpeed,
+            speed = lastSpeed,
             avgSpeed = avgSpeed,
             totalDistanceMeters = totalDistanceMeters,
             timestamp = timestamp
