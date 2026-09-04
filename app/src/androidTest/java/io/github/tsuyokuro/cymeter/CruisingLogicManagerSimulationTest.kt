@@ -8,6 +8,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.tsuyokuro.cymeter.db.AppDatabase
 import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -21,7 +23,90 @@ import java.io.FileInputStream
 class CruisingLogicManagerSimulationTest {
     private val TAG = "SimulationTest"
 
+    var appDatabase : AppDatabase? = null
+
     enum class DataSource { DOWNLOAD, ASSETS }
+
+    @Before
+    fun setUp() {
+        appDatabase = getDataBase(DataSource.ASSETS)
+    }
+
+    @After
+    fun tearDown() {
+        appDatabase?.close()
+//        val instrumentation = InstrumentationRegistry.getInstrumentation()
+//        val context = instrumentation.targetContext
+//        context.deleteDatabase("simulation_temp.db")
+    }
+
+    @Test
+    fun simulateLastSession() = runBlocking {
+        val database = appDatabase
+
+        if (database == null) {
+            Log.e(TAG, "Database is null. Skipping simulation.")
+            return@runBlocking
+        }
+
+        val sessionDao = database.sessionDao()
+        val locationDao = database.locationDao()
+
+        val lastSession = sessionDao.getLatestSession()
+        if (lastSession == null) {
+            Log.e(TAG, "No sessions found in database.")
+            return@runBlocking
+        }
+
+        Log.i(TAG, "Simulating Session ID: ${lastSession.id} started at ${lastSession.startTime}")
+
+        val points = locationDao.getPointsBySessionId(lastSession.id)
+        if (points.isEmpty()) {
+            Log.e(TAG, "No location points found for session ${lastSession.id}.")
+            return@runBlocking
+        }
+
+        Log.i(TAG, "Number of points to process: ${points.size}")
+
+        val thresholdMps = 5.0f / 3.6f
+        val logicManager = CruisingLogicManager(speedThresholdMps = thresholdMps)
+
+        var prevDistance = 0f
+        points.forEachIndexed { index, point ->
+            val distanceIncrement = if (index == 0) 0f else (point.totalDistanceMeters - prevDistance).coerceAtLeast(0f)
+            prevDistance = point.totalDistanceMeters
+
+            val result = logicManager.onLocationUpdate(
+                currentTime = point.timestamp,
+                speed = point.speed,
+                distanceIncrement = distanceIncrement
+            )
+
+            // Log every 50 points or so to avoid flooding, but log changes in key metrics
+            if (index % 50 == 0 || index == points.lastIndex) {
+                Log.d(TAG, "[#$index] Dist: %.2f km, Speed: %.1f km/h, Rolling: %.1f km/h, Avg Cruising: %.1f km/h, Best Seg: %.1f km/h".format(
+                    result.totalDistanceMeters / 1000f,
+                    result.currentSpeed * 3.6f,
+                    result.rollingSpeed * 3.6f,
+                    result.representativeCruisingSpeed * 3.6f,
+                    result.bestSegmentSpeed * 3.6f
+                ))
+            }
+        }
+
+        val finalResult = logicManager.stop(System.currentTimeMillis()) // timestamp doesn't matter much here if already at end
+
+        Log.i(TAG, "=== SIMULATION FINAL SUMMARY ===")
+        Log.i(TAG, "Total Distance: %.3f km".format(finalResult.totalDistanceMeters / 1000f))
+        Log.i(TAG, "Total Avg Speed: %.2f km/h".format(finalResult.avgSpeed * 3.6f))
+        Log.i(TAG, "Representative Cruising Speed: %.2f km/h".format(finalResult.representativeCruisingSpeed * 3.6f))
+        Log.i(TAG, "Best Segment Speed: %.2f km/h".format(finalResult.bestSegmentSpeed * 3.6f))
+        Log.i(TAG, "Best Segment Range: %.2f km - %.2f km (%.2f km)".format(
+            finalResult.bestSegmentStartKm,
+            finalResult.bestSegmentEndKm,
+            finalResult.bestSegmentDistance / 1000f
+        ))
+    }
 
     fun getDataBase(source : DataSource) : AppDatabase? {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -60,79 +145,6 @@ class CruisingLogicManagerSimulationTest {
             .build()
 
         return database
-    }
-
-    @Test
-    fun simulateLastSession() = runBlocking {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val context = instrumentation.targetContext
-
-        val database = getDataBase(DataSource.ASSETS) ?: return@runBlocking
-
-        val sessionDao = database.sessionDao()
-        val locationDao = database.locationDao()
-
-        // 1. Get the latest session
-        val lastSession = sessionDao.getLatestSession()
-        if (lastSession == null) {
-            Log.e(TAG, "No sessions found in database.")
-            return@runBlocking
-        }
-
-        Log.i(TAG, "Simulating Session ID: ${lastSession.id} started at ${lastSession.startTime}")
-
-        // 2. Get all points for this session
-        val points = locationDao.getPointsBySessionId(lastSession.id)
-        if (points.isEmpty()) {
-            Log.e(TAG, "No location points found for session ${lastSession.id}.")
-            return@runBlocking
-        }
-
-        Log.i(TAG, "Number of points to process: ${points.size}")
-
-        // 3. Initialize LogicManager (using 5 km/h threshold as default)
-        val thresholdMps = 5.0f / 3.6f
-        val logicManager = CruisingLogicManager(speedThresholdMps = thresholdMps)
-
-        // 4. Feed points one by one
-        var prevDistance = 0f
-        points.forEachIndexed { index, point ->
-            val distanceIncrement = if (index == 0) 0f else (point.totalDistanceMeters - prevDistance).coerceAtLeast(0f)
-            prevDistance = point.totalDistanceMeters
-
-            val result = logicManager.onLocationUpdate(
-                currentTime = point.timestamp,
-                speed = point.speed,
-                distanceIncrement = distanceIncrement
-            )
-
-            // Log every 50 points or so to avoid flooding, but log changes in key metrics
-            if (index % 50 == 0 || index == points.lastIndex) {
-                Log.d(TAG, "[#$index] Dist: %.2f km, Speed: %.1f km/h, Rolling: %.1f km/h, Avg Cruising: %.1f km/h, Best Seg: %.1f km/h".format(
-                    result.totalDistanceMeters / 1000f,
-                    result.currentSpeed * 3.6f,
-                    result.rollingSpeed * 3.6f,
-                    result.representativeCruisingSpeed * 3.6f,
-                    result.bestSegmentSpeed * 3.6f
-                ))
-            }
-        }
-
-        // 5. Get final summary
-        val finalResult = logicManager.stop(System.currentTimeMillis()) // timestamp doesn't matter much here if already at end
-
-        Log.i(TAG, "=== SIMULATION FINAL SUMMARY ===")
-        Log.i(TAG, "Total Distance: %.3f km".format(finalResult.totalDistanceMeters / 1000f))
-        Log.i(TAG, "Total Avg Speed: %.2f km/h".format(finalResult.avgSpeed * 3.6f))
-        Log.i(TAG, "Representative Cruising Speed: %.2f km/h".format(finalResult.representativeCruisingSpeed * 3.6f))
-        Log.i(TAG, "Best Segment Speed: %.2f km/h".format(finalResult.bestSegmentSpeed * 3.6f))
-        Log.i(TAG, "Best Segment Range: %.2f km - %.2f km (%.2f km)".format(
-            finalResult.bestSegmentStartKm,
-            finalResult.bestSegmentEndKm,
-            finalResult.bestSegmentDistance / 1000f
-        ))
-        // 6. Close database
-        database.close()
     }
 
     private fun copyBackupFromDownload(
@@ -178,6 +190,13 @@ class CruisingLogicManagerSimulationTest {
         }
     }
 
+    private fun runShellCommand(instrumentation: android.app.Instrumentation, cmd: String): String {
+        val pfd = instrumentation.uiAutomation.executeShellCommand(cmd)
+        val result = FileInputStream(pfd.fileDescriptor).bufferedReader().readText()
+        pfd.close()
+        return result
+    }
+
     private fun copyBackupFromAssets(
         assetContext: Context,
         assetPath: String,
@@ -208,12 +227,5 @@ class CruisingLogicManagerSimulationTest {
             Log.e(TAG, "Asset copy failed: target file empty or not found")
             false
         }
-    }
-
-    private fun runShellCommand(instrumentation: android.app.Instrumentation, cmd: String): String {
-        val pfd = instrumentation.uiAutomation.executeShellCommand(cmd)
-        val result = FileInputStream(pfd.fileDescriptor).bufferedReader().readText()
-        pfd.close()
-        return result
     }
 }
