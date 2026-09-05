@@ -35,9 +35,9 @@ class CruisingLogicManagerSimulationTest {
     @After
     fun tearDown() {
         appDatabase?.close()
-//        val instrumentation = InstrumentationRegistry.getInstrumentation()
-//        val context = instrumentation.targetContext
-//        context.deleteDatabase("simulation_temp.db")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        context.deleteDatabase("simulation_temp_1.db")
     }
 
     @Test
@@ -83,13 +83,14 @@ class CruisingLogicManagerSimulationTest {
             )
 
             // Log every 50 points or so to avoid flooding, but log changes in key metrics
-            if (index % 50 == 0 || index == points.lastIndex) {
-                Log.d(TAG, "[#$index] Dist: %.2f km, Speed: %.1f km/h, Rolling: %.1f km/h, Avg Cruising: %.1f km/h, Best Seg: %.1f km/h".format(
+            if (index % 10 == 0 || index == points.lastIndex) {
+                Log.d(TAG, "[#$index] Dist: %.2f km, Speed: %.1f km/h, Rolling: %.1f km/h, Avg Cruising: %.1f km/h, Best Seg: %.1f km/h, Max speed: %.1f km/h".format(
                     result.totalDistanceMeters / 1000f,
                     result.currentSpeed * 3.6f,
                     result.rollingSpeed * 3.6f,
                     result.representativeCruisingSpeed * 3.6f,
-                    result.bestSegmentSpeed * 3.6f
+                    result.bestSegmentSpeed * 3.6f,
+                    result.maxSpeed * 3.6f
                 ))
             }
         }
@@ -112,7 +113,7 @@ class CruisingLogicManagerSimulationTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
 
-        val testDbFile = context.getDatabasePath("simulation_temp.db")
+        val testDbFile = context.getDatabasePath("simulation_temp_1.db")
 
         val success = when (source) {
             DataSource.DOWNLOAD -> copyBackupFromDownload(
@@ -123,7 +124,7 @@ class CruisingLogicManagerSimulationTest {
             DataSource.ASSETS -> copyBackupFromAssets(
                 // Use test context for androidTest assets
                 assetContext = instrumentation.context,
-                assetPath = "test_data/cymeter_backup_1.db",
+                assetPath = "test_data/cymeter_test_data_2.db",
                 targetFile = testDbFile
             )
         }

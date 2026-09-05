@@ -26,6 +26,13 @@ class CruisingLogicManager(
     private var segmentStartDistance: Float = 0f
     private val validSegments = mutableListOf<CruisingSegment>()
 
+    // Speed LPF
+    private var lpfSpeed: Float = 0f
+
+    companion object {
+        private const val LPF_ALPHA = 0.2f
+    }
+
     data class CruisingSegment(
         val durationMs: Long,
         val distanceMeters: Float,
@@ -58,19 +65,23 @@ class CruisingLogicManager(
         speed: Float,
         distanceIncrement: Float
     ): LogicResult {
-        if (speed > maxSpeedInternal) {
-            maxSpeedInternal = speed
+        lpfSpeed = LPF_ALPHA * lpfSpeed + (1 - LPF_ALPHA) * speed
+
+        val currentSpeed = lpfSpeed
+
+        if (currentSpeed > maxSpeedInternal) {
+            maxSpeedInternal = currentSpeed
         }
 
-        if (speed >= speedThresholdMps) {
-            totalSpeedSum += speed
+        if (currentSpeed >= speedThresholdMps) {
+            totalSpeedSum += currentSpeed
             speedSamplesCount++
         }
 
         totalDistanceMeters += distanceIncrement
 
         // Rolling Speed Logic
-        rollingSamples.add(currentTime to speed)
+        rollingSamples.add(currentTime to currentSpeed)
         while (rollingSamples.isNotEmpty() && currentTime - rollingSamples.peekFirst()!!.first > rollingWindowMs) {
             rollingSamples.removeFirst()
         }
@@ -85,7 +96,7 @@ class CruisingLogicManager(
         }
 
         // Segment Logic
-        if (speed >= speedThresholdMps) {
+        if (currentSpeed >= speedThresholdMps) {
             if (segmentStartTime == 0L) {
                 segmentStartTime = currentTime
                 segmentStartDistance = totalDistanceMeters - distanceIncrement // Start from before this increment
@@ -97,7 +108,7 @@ class CruisingLogicManager(
         val liveMetrics = calculateLiveCruisingMetrics(currentTime)
 
         return LogicResult(
-            currentSpeed = speed,
+            currentSpeed = currentSpeed,
             avgSpeed = getAverageSpeed(),
             maxSpeed = maxSpeedInternal,
             totalDistanceMeters = totalDistanceMeters,
