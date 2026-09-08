@@ -124,7 +124,7 @@ class CruisingLogicManagerSimulationTest {
             DataSource.ASSETS -> copyBackupFromAssets(
                 // Use test context for androidTest assets
                 assetContext = instrumentation.context,
-                assetPath = "test_data/cymeter_test_data_2.db",
+                assetPath = "test_data/cymeter_test_data_1.db",
                 targetFile = testDbFile
             )
         }
