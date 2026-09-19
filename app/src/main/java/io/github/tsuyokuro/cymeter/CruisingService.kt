@@ -78,6 +78,8 @@ class CruisingService : Service() {
         val bestSegmentDistance: Float = 0f,
         val bestSegmentStartKm: Float = 0f,
         val bestSegmentEndKm: Float = 0f,
+        val movingTimeMs: Long = 0,
+        val elapsedTimeMs: Long = 0,
         val sessionId: Long = 0L,
         val isViewingHistory: Boolean = false
     )
@@ -201,7 +203,9 @@ class CruisingService : Service() {
             bestSegmentSpeed = result.bestSegmentSpeed,
             bestSegmentDistance = result.bestSegmentDistance,
             bestSegmentStartKm = result.bestSegmentStartKm,
-            bestSegmentEndKm = result.bestSegmentEndKm
+            bestSegmentEndKm = result.bestSegmentEndKm,
+            movingTimeMs = result.movingTimeMs,
+            elapsedTimeMs = result.elapsedTimeMs
         )
 
         kotlinx.coroutines.runBlocking {
@@ -230,7 +234,8 @@ class CruisingService : Service() {
                         bestSegmentSpeed = result.bestSegmentSpeed,
                         bestSegmentDistance = result.bestSegmentDistance,
                         bestSegmentStartKm = result.bestSegmentStartKm,
-                        bestSegmentEndKm = result.bestSegmentEndKm
+                        bestSegmentEndKm = result.bestSegmentEndKm,
+                        movingTimeMs = result.movingTimeMs
                     )
                 )
             }
@@ -265,7 +270,8 @@ class CruisingService : Service() {
                                 bestSegmentSpeed = result.bestSegmentSpeed,
                                 bestSegmentDistance = result.bestSegmentDistance,
                                 bestSegmentStartKm = result.bestSegmentStartKm,
-                                bestSegmentEndKm = result.bestSegmentEndKm
+                                bestSegmentEndKm = result.bestSegmentEndKm,
+                                movingTimeMs = result.movingTimeMs
                             )
                         )
                     }
@@ -340,7 +346,9 @@ class CruisingService : Service() {
             bestSegmentSpeed = result.bestSegmentSpeed,
             bestSegmentDistance = result.bestSegmentDistance,
             bestSegmentStartKm = result.bestSegmentStartKm,
-            bestSegmentEndKm = result.bestSegmentEndKm
+            bestSegmentEndKm = result.bestSegmentEndKm,
+            movingTimeMs = result.movingTimeMs,
+            elapsedTimeMs = result.elapsedTimeMs
         )
     }
 

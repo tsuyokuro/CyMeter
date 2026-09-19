@@ -23,6 +23,31 @@ class CruisingLogicManagerTest {
     }
 
     @Test
+    fun `test moving and elapsed time tracking`() {
+        // Threshold is 5 km/h (1.38 m/s)
+        
+        // 1. Initial update at 1000ms, speed 10 km/h
+        var result = logicManager.onLocationUpdate(1000L, 10f / 3.6f, 10f)
+        assertEquals(0L, result.movingTimeMs)
+        assertEquals(0L, result.elapsedTimeMs)
+
+        // 2. Next update at 2000ms (+1s), speed 10 km/h (above threshold)
+        result = logicManager.onLocationUpdate(2000L, 10f / 3.6f, 10f)
+        assertEquals(1000L, result.elapsedTimeMs)
+        assertEquals(1000L, result.movingTimeMs)
+
+        // 3. Next update at 5000ms (+3s), speed 2 km/h (below threshold)
+        result = logicManager.onLocationUpdate(5000L, 2f / 3.6f, 2f)
+        assertEquals(4000L, result.elapsedTimeMs)
+        assertEquals(1000L, result.movingTimeMs) // Current speed (2) is below threshold, so 3s NOT added
+
+        // 4. Next update at 10000ms (+5s), speed 10 km/h (above threshold)
+        result = logicManager.onLocationUpdate(10000L, 10f / 3.6f, 10f)
+        assertEquals(9000L, result.elapsedTimeMs)
+        assertEquals(6000L, result.movingTimeMs) // Current speed (10) is above threshold, so 5s ADDED (1000 + 5000)
+    }
+
+    @Test
     fun `test basic speed and distance tracking`() {
         val currentTime = 1000L
         val speed = 10f / 3.6f // 10 km/h

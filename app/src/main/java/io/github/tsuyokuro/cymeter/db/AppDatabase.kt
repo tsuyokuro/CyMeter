@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.File
 
-@Database(entities = [LocationPoint::class, Session::class], version = 9, exportSchema = false)
+@Database(entities = [LocationPoint::class, Session::class], version = 10, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun sessionDao(): SessionDao
@@ -56,6 +58,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                if (!columnExists(db, "sessions", "movingTimeMs")) {
+                    db.execSQL("ALTER TABLE sessions ADD COLUMN movingTimeMs INTEGER NOT NULL DEFAULT 0")
+                }
+            }
+        }
+
         private fun columnExists(
             db: androidx.sqlite.db.SupportSQLiteDatabase,
             tableName: String,
@@ -91,7 +101,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     dbFile,
                 )
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_9_10)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance

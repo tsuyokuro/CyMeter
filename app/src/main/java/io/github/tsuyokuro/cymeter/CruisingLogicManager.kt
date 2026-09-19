@@ -20,6 +20,11 @@ class CruisingLogicManager(
     private var maxSpeedInternal: Float = 0.0f
     private var totalDistanceMeters: Float = 0.0f
 
+    // Time tracking
+    private var sessionStartTime: Long = 0L
+    private var lastUpdateTime: Long = 0L
+    private var movingTimeMs: Long = 0L
+
     // Rolling Cruising Speed state
     private val rollingSamples = ArrayDeque<Pair<Long, Float>>()
     private var lastValidRollingSpeed: Float = 0f
@@ -53,7 +58,9 @@ class CruisingLogicManager(
         val bestSegmentSpeed: Float,
         val bestSegmentDistance: Float,
         val bestSegmentStartKm: Float,
-        val bestSegmentEndKm: Float
+        val bestSegmentEndKm: Float,
+        val movingTimeMs: Long,
+        val elapsedTimeMs: Long
     )
 
     /**
@@ -66,10 +73,17 @@ class CruisingLogicManager(
         distanceIncrement: Float
     ): LogicResult {
         if (isFirstUpdate) {
-            lpfSpeed = speed
+            lpfSpeed = (1 - lpfAlpha) * speed
             isFirstUpdate = false
+            sessionStartTime = currentTime
+            lastUpdateTime = currentTime
         } else {
             lpfSpeed = lpfAlpha * lpfSpeed + (1 - lpfAlpha) * speed
+            val timeDelta = (currentTime - lastUpdateTime).coerceAtMost(5000L) // Limit delta to avoid jumps
+            if (lpfSpeed >= speedThresholdMps) {
+                movingTimeMs += timeDelta
+            }
+            lastUpdateTime = currentTime
         }
 
         val currentSpeed = lpfSpeed
@@ -132,7 +146,9 @@ class CruisingLogicManager(
             bestSegmentSpeed = liveMetrics.bestSegmentSpeed,
             bestSegmentDistance = liveMetrics.bestSegmentDistance,
             bestSegmentStartKm = liveMetrics.bestSegmentStartKm,
-            bestSegmentEndKm = liveMetrics.bestSegmentEndKm
+            bestSegmentEndKm = liveMetrics.bestSegmentEndKm,
+            movingTimeMs = movingTimeMs,
+            elapsedTimeMs = currentTime - sessionStartTime
         )
     }
 
@@ -194,7 +210,9 @@ class CruisingLogicManager(
             bestSegmentSpeed = metrics.bestSegmentSpeed,
             bestSegmentDistance = metrics.bestSegmentDistance,
             bestSegmentStartKm = metrics.bestSegmentStartKm,
-            bestSegmentEndKm = metrics.bestSegmentEndKm
+            bestSegmentEndKm = metrics.bestSegmentEndKm,
+            movingTimeMs = movingTimeMs,
+            elapsedTimeMs = currentTime - sessionStartTime
         )
     }
 
@@ -210,6 +228,9 @@ class CruisingLogicManager(
         validSegments.clear()
         lpfSpeed = 0f
         isFirstUpdate = true
+        sessionStartTime = 0L
+        lastUpdateTime = 0L
+        movingTimeMs = 0L
     }
 
     private fun finalizeCurrentSegment(currentTime: Long) {

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -181,6 +182,24 @@ fun DashboardContent(
             }
             item {
                 StatCard(
+                    title = stringResource(R.string.dashboard_moving_time),
+                    value = formatDuration(cruisingData.movingTimeMs),
+                    unit = "",
+                    icon = Icons.Rounded.Timer,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_elapsed_time),
+                    value = formatDuration(cruisingData.elapsedTimeMs),
+                    unit = "",
+                    icon = Icons.Rounded.History,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+            item {
+                StatCard(
                     title = stringResource(R.string.dashboard_total_distance),
                     value = "%.2f".format(cruisingData.distanceKm),
                     unit = "km",
@@ -267,6 +286,18 @@ fun DashboardContent(
                 Text(stringResource(R.string.dashboard_reset))
             }
         }
+    }
+}
+
+fun formatDuration(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
     }
 }
 
