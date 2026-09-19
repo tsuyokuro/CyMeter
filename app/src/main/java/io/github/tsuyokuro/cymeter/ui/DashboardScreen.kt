@@ -56,8 +56,6 @@ fun DashboardScreen(
     onStartService: () -> Unit,
     onStopService: () -> Unit,
     onResetData: () -> Unit,
-    onViewCharts: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val cruisingData: CruisingService.CruisingState
@@ -70,8 +68,6 @@ fun DashboardScreen(
         onStopService,
         onResetData,
         onExitHistory = { viewModel.exitHistoryMode() },
-        onOpenSettings = onOpenSettings,
-        onViewCharts = onViewCharts,
         modifier
     )
 }
@@ -84,8 +80,6 @@ fun DashboardContent(
     onStopService: () -> Unit,
     onResetData: () -> Unit,
     onExitHistory: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onViewCharts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -103,15 +97,6 @@ fun DashboardContent(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-
-//            Row {
-//                IconButton(onClick = onViewCharts) {
-//                    Icon(Icons.Rounded.BarChart, contentDescription = "View Charts")
-//                }
-//                IconButton(onClick = onOpenSettings) {
-//                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-//                }
-//            }
         }
 
         if (cruisingData.isViewingHistory) {
@@ -385,8 +370,6 @@ fun DashboardPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {},
-            onViewCharts = {}
         )
     }
 }
@@ -402,8 +385,6 @@ fun DashboardTabletPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {},
-            onViewCharts = {}
         )
     }
 }
