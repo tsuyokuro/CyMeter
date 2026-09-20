@@ -15,5 +15,6 @@ data class Session(
     val bestSegmentSpeed: Float = 0f,
     val bestSegmentDistance: Float = 0f,
     val bestSegmentStartKm: Float = 0f,
-    val bestSegmentEndKm: Float = 0f
+    val bestSegmentEndKm: Float = 0f,
+    val movingTimeMs: Long = 0
 )

@@ -11,9 +11,9 @@
     <string name="dashboard_rep_cruising_speed">Avg Cruising Speed</string>
     <string name="dashboard_best_segment">Best Segment</string>
     <string name="dashboard_max_speed">Max Speed</string>
-    <string name="dashboard_moving_time">Moving Time</string>
-    <string name="dashboard_status">Status</string>
     <string name="dashboard_total_distance">Total Distance</string>
+    <string name="dashboard_moving_time">Moving Time</string>
+    <string name="dashboard_elapsed_time">Elapsed Time</string>
     <string name="dashboard_start_tracking">Start Tracking</string>
     <string name="dashboard_stop_tracking">Stop Tracking</string>
     <string name="dashboard_reset">Reset</string>

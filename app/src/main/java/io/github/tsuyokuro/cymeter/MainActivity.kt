@@ -295,8 +295,6 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onStopService = { stopCruisingService() },
                                             onResetData = { viewModel.resetData(cruisingService) },
-                                            onViewCharts = onChartsClick,
-                                            onOpenSettings = onSettingsClick
                                         )
                                     }
 

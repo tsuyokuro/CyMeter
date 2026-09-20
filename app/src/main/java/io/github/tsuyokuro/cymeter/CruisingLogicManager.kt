@@ -1,6 +1,7 @@
 package io.github.tsuyokuro.cymeter
 
 import java.util.ArrayDeque
+import kotlin.math.ceil
 
 /**
  * Manages the business logic for tracking speed, distance, and cruising segments.
@@ -9,13 +10,20 @@ import java.util.ArrayDeque
 class CruisingLogicManager(
     var speedThresholdMps: Float,
     private val rollingWindowMs: Long = 30000L,
-    private val minSegmentDurationMs: Long = 60000L
+    private val minSegmentDurationMs: Long = 60000L,
+    private val lpfAlpha: Float = 0.2f,
+    private val rollingTopPercentage: Float = 0.7f
 ) {
     // Basic stats
     private var totalSpeedSum: Double = 0.0
     private var speedSamplesCount: Long = 0
     private var maxSpeedInternal: Float = 0.0f
     private var totalDistanceMeters: Float = 0.0f
+
+    // Time tracking
+    private var sessionStartTime: Long = 0L
+    private var lastUpdateTime: Long = 0L
+    private var movingTimeMs: Long = 0L
 
     // Rolling Cruising Speed state
     private val rollingSamples = ArrayDeque<Pair<Long, Float>>()
@@ -25,6 +33,10 @@ class CruisingLogicManager(
     private var segmentStartTime: Long = 0L
     private var segmentStartDistance: Float = 0f
     private val validSegments = mutableListOf<CruisingSegment>()
+
+    // Speed LPF
+    private var lpfSpeed: Float = 0f
+    private var isFirstUpdate = true
 
     data class CruisingSegment(
         val durationMs: Long,
@@ -46,7 +58,9 @@ class CruisingLogicManager(
         val bestSegmentSpeed: Float,
         val bestSegmentDistance: Float,
         val bestSegmentStartKm: Float,
-        val bestSegmentEndKm: Float
+        val bestSegmentEndKm: Float,
+        val movingTimeMs: Long,
+        val elapsedTimeMs: Long
     )
 
     /**
@@ -58,26 +72,51 @@ class CruisingLogicManager(
         speed: Float,
         distanceIncrement: Float
     ): LogicResult {
-        if (speed > maxSpeedInternal) {
-            maxSpeedInternal = speed
+        if (isFirstUpdate) {
+            lpfSpeed = (1 - lpfAlpha) * speed
+            isFirstUpdate = false
+            sessionStartTime = currentTime
+            lastUpdateTime = currentTime
+        } else {
+            lpfSpeed = lpfAlpha * lpfSpeed + (1 - lpfAlpha) * speed
+            val timeDelta = (currentTime - lastUpdateTime).coerceAtMost(5000L) // Limit delta to avoid jumps
+            if (lpfSpeed >= speedThresholdMps) {
+                movingTimeMs += timeDelta
+            }
+            lastUpdateTime = currentTime
         }
 
-        if (speed >= speedThresholdMps) {
-            totalSpeedSum += speed
+        val currentSpeed = lpfSpeed
+
+        if (currentSpeed > maxSpeedInternal) {
+            maxSpeedInternal = currentSpeed
+        }
+
+        if (currentSpeed >= speedThresholdMps) {
+            totalSpeedSum += currentSpeed
             speedSamplesCount++
         }
 
         totalDistanceMeters += distanceIncrement
 
         // Rolling Speed Logic
-        rollingSamples.add(currentTime to speed)
+        rollingSamples.add(currentTime to currentSpeed)
         while (rollingSamples.isNotEmpty() && currentTime - rollingSamples.peekFirst()!!.first > rollingWindowMs) {
             rollingSamples.removeFirst()
         }
 
-        val validRollingSamples = rollingSamples.filter { it.second >= speedThresholdMps }
-        val (rollingSpeed, isHeld) = if (validRollingSamples.isNotEmpty()) {
-            val avg = validRollingSamples.map { it.second }.average().toFloat()
+        val validSpeeds = mutableListOf<Double>()
+        for (sample in rollingSamples) {
+            if (sample.second >= speedThresholdMps) {
+                validSpeeds.add(sample.second.toDouble())
+            }
+        }
+
+        val (rollingSpeed, isHeld) = if (validSpeeds.isNotEmpty()) {
+            validSpeeds.sortDescending()
+            // Top N%
+            val countToTake = ceil(validSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
+            val avg = validSpeeds.take(countToTake).average().toFloat()
             lastValidRollingSpeed = avg
             avg to false
         } else {
@@ -85,7 +124,7 @@ class CruisingLogicManager(
         }
 
         // Segment Logic
-        if (speed >= speedThresholdMps) {
+        if (currentSpeed >= speedThresholdMps) {
             if (segmentStartTime == 0L) {
                 segmentStartTime = currentTime
                 segmentStartDistance = totalDistanceMeters - distanceIncrement // Start from before this increment
@@ -97,7 +136,7 @@ class CruisingLogicManager(
         val liveMetrics = calculateLiveCruisingMetrics(currentTime)
 
         return LogicResult(
-            currentSpeed = speed,
+            currentSpeed = currentSpeed,
             avgSpeed = getAverageSpeed(),
             maxSpeed = maxSpeedInternal,
             totalDistanceMeters = totalDistanceMeters,
@@ -107,7 +146,9 @@ class CruisingLogicManager(
             bestSegmentSpeed = liveMetrics.bestSegmentSpeed,
             bestSegmentDistance = liveMetrics.bestSegmentDistance,
             bestSegmentStartKm = liveMetrics.bestSegmentStartKm,
-            bestSegmentEndKm = liveMetrics.bestSegmentEndKm
+            bestSegmentEndKm = liveMetrics.bestSegmentEndKm,
+            movingTimeMs = movingTimeMs,
+            elapsedTimeMs = currentTime - sessionStartTime
         )
     }
 
@@ -169,7 +210,9 @@ class CruisingLogicManager(
             bestSegmentSpeed = metrics.bestSegmentSpeed,
             bestSegmentDistance = metrics.bestSegmentDistance,
             bestSegmentStartKm = metrics.bestSegmentStartKm,
-            bestSegmentEndKm = metrics.bestSegmentEndKm
+            bestSegmentEndKm = metrics.bestSegmentEndKm,
+            movingTimeMs = movingTimeMs,
+            elapsedTimeMs = currentTime - sessionStartTime
         )
     }
 
@@ -183,6 +226,11 @@ class CruisingLogicManager(
         segmentStartTime = 0L
         segmentStartDistance = 0f
         validSegments.clear()
+        lpfSpeed = 0f
+        isFirstUpdate = true
+        sessionStartTime = 0L
+        lastUpdateTime = 0L
+        movingTimeMs = 0L
     }
 
     private fun finalizeCurrentSegment(currentTime: Long) {

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
@@ -55,8 +56,6 @@ fun DashboardScreen(
     onStartService: () -> Unit,
     onStopService: () -> Unit,
     onResetData: () -> Unit,
-    onViewCharts: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val cruisingData: CruisingService.CruisingState
@@ -69,8 +68,6 @@ fun DashboardScreen(
         onStopService,
         onResetData,
         onExitHistory = { viewModel.exitHistoryMode() },
-        onOpenSettings = onOpenSettings,
-        onViewCharts = onViewCharts,
         modifier
     )
 }
@@ -83,8 +80,6 @@ fun DashboardContent(
     onStopService: () -> Unit,
     onResetData: () -> Unit,
     onExitHistory: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onViewCharts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -102,15 +97,6 @@ fun DashboardContent(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-
-//            Row {
-//                IconButton(onClick = onViewCharts) {
-//                    Icon(Icons.Rounded.BarChart, contentDescription = "View Charts")
-//                }
-//                IconButton(onClick = onOpenSettings) {
-//                    Icon(Icons.Rounded.Settings, contentDescription = "Settings")
-//                }
-//            }
         }
 
         if (cruisingData.isViewingHistory) {
@@ -177,6 +163,24 @@ fun DashboardContent(
                     unit = "km/h",
                     icon = Icons.AutoMirrored.Rounded.TrendingUp,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_moving_time),
+                    value = formatDuration(cruisingData.movingTimeMs),
+                    unit = "",
+                    icon = Icons.Rounded.Timer,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            item {
+                StatCard(
+                    title = stringResource(R.string.dashboard_elapsed_time),
+                    value = formatDuration(cruisingData.elapsedTimeMs),
+                    unit = "",
+                    icon = Icons.Rounded.History,
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
             item {
@@ -270,6 +274,18 @@ fun DashboardContent(
     }
 }
 
+fun formatDuration(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
+    }
+}
+
 @Composable
 fun StatCard(
     title: String,
@@ -354,8 +370,6 @@ fun DashboardPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {},
-            onViewCharts = {}
         )
     }
 }
@@ -371,8 +385,6 @@ fun DashboardTabletPreview() {
             onStopService = {},
             onResetData = {},
             onExitHistory = {},
-            onOpenSettings = {},
-            onViewCharts = {}
         )
     }
 }

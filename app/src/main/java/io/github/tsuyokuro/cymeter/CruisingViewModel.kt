@@ -175,6 +175,8 @@ class CruisingViewModel(
                     bestSegmentDistance = lastSession.bestSegmentDistance,
                     bestSegmentStartKm = lastSession.bestSegmentStartKm,
                     bestSegmentEndKm = lastSession.bestSegmentEndKm,
+                    movingTimeMs = lastSession.movingTimeMs,
+                    elapsedTimeMs = if (lastSession.endTime > lastSession.startTime) lastSession.endTime - lastSession.startTime else 0L,
                     currentSpeed = 0f
                 )
             }
@@ -210,6 +212,8 @@ class CruisingViewModel(
                     bestSegmentDistance = session.bestSegmentDistance,
                     bestSegmentStartKm = session.bestSegmentStartKm,
                     bestSegmentEndKm = session.bestSegmentEndKm,
+                    movingTimeMs = session.movingTimeMs,
+                    elapsedTimeMs = if (session.endTime > session.startTime) session.endTime - session.startTime else 0L,
                     isViewingHistory = true,
                     currentSpeed = 0f
                 )

@@ -184,6 +184,19 @@ fun SessionItem(
                         )
                     )
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    InfoChip(
+                        label = "Moving",
+                        value = formatDuration(session.movingTimeMs)
+                    )
+                    InfoChip(
+                        label = "Elapsed",
+                        value = formatDuration(if (session.endTime > session.startTime) session.endTime - session.startTime else 0L)
+                    )
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(
