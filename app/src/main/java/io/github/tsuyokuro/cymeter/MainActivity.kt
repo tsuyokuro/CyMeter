@@ -61,6 +61,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import io.github.tsuyokuro.cymeter.db.AppDatabase
+import io.github.tsuyokuro.cymeter.ui.ChartsScreen
 import io.github.tsuyokuro.cymeter.ui.DashboardScreen
 import io.github.tsuyokuro.cymeter.ui.HistoryScreen
 import io.github.tsuyokuro.cymeter.ui.MapScreen
@@ -86,7 +87,7 @@ data object SettingsRoute : NavKey
 class MainActivity : ComponentActivity() {
 
     private var cruisingService by mutableStateOf<CruisingService?>(null)
-    private var isBound by mutableStateOf(false)
+    private var isServiceBound by mutableStateOf(false)
 
     private val db by lazy { AppDatabase.getDatabase(applicationContext) }
     private val locationDao by lazy { db.locationDao() }
@@ -127,18 +128,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    private val connection = object : ServiceConnection {
+    private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as CruisingService.LocalBinder
             val instance = binder.getService()
             cruisingService = instance
-            isBound = true
+            isServiceBound = true
             // Immediately sync tracking state from service
             viewModel.updateState(instance.cruisingData.value)
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
+            isServiceBound = false
             cruisingService = null
         }
     }
@@ -151,7 +152,7 @@ class MainActivity : ComponentActivity() {
         // Attempt to bind to the service if it's already running
         // The viewModel is already initialized via 'by viewModels'
         val intent = Intent(this, CruisingService::class.java)
-        bindService(intent, connection, 0) // Use 0 to not start it if not running
+        bindService(intent, serviceConnection, 0) // Use 0 to not start it if not running
 
         setContent {
             CyMeterTheme {
@@ -303,7 +304,7 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     is ChartsRoute -> NavEntry(key) {
-                                        io.github.tsuyokuro.cymeter.ui.ChartsScreen(viewModel = viewModel)
+                                        ChartsScreen(viewModel = viewModel)
                                     }
 
                                     is HistoryRoute -> NavEntry(key) {
@@ -343,15 +344,15 @@ class MainActivity : ComponentActivity() {
         viewModel.setTracking(true)
         val intent = Intent(this, CruisingService::class.java)
         startForegroundService(intent)
-        bindService(intent, connection, BIND_AUTO_CREATE)
+        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
     }
 
     private fun stopCruisingService() {
         cruisingService?.stopTracking()
         viewModel.setTracking(false)
-        if (isBound) {
-            unbindService(connection)
-            isBound = false
+        if (isServiceBound) {
+            unbindService(serviceConnection)
+            isServiceBound = false
         }
         val intent = Intent(this, CruisingService::class.java)
         stopService(intent)
@@ -360,9 +361,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isBound) {
-            unbindService(connection)
-            isBound = false
+        if (isServiceBound) {
+            unbindService(serviceConnection)
+            isServiceBound = false
         }
     }
 }
