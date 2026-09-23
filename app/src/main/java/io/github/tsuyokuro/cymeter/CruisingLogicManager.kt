@@ -100,23 +100,19 @@ class CruisingLogicManager(
         totalDistanceMeters += distanceIncrement
 
         // Rolling Speed Logic
-        rollingSamples.add(currentTime to currentSpeed)
         while (rollingSamples.isNotEmpty() && currentTime - rollingSamples.peekFirst()!!.first > rollingWindowMs) {
             rollingSamples.removeFirst()
         }
 
-        val validSpeeds = mutableListOf<Double>()
-        for (sample in rollingSamples) {
-            if (sample.second >= speedThresholdMps) {
-                validSpeeds.add(sample.second.toDouble())
-            }
+        if (currentSpeed >= speedThresholdMps) {
+            rollingSamples.add(currentTime to currentSpeed)
         }
 
-        val (rollingSpeed, isHeld) = if (validSpeeds.isNotEmpty()) {
-            validSpeeds.sortDescending()
+        val (rollingSpeed, isHeld) = if (rollingSamples.isNotEmpty()) {
+            val sortedSpeeds = rollingSamples.map { it.second.toDouble() }.sortedDescending()
             // Top N%
-            val countToTake = ceil(validSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
-            val avg = validSpeeds.take(countToTake).average().toFloat()
+            val countToTake = ceil(sortedSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
+            val avg = sortedSpeeds.take(countToTake).average().toFloat()
             lastValidRollingSpeed = avg
             avg to false
         } else {
