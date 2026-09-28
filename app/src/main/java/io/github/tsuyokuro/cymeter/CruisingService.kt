@@ -53,7 +53,6 @@ class CruisingService : Service() {
     @Volatile
     private var currentSession: Session? = null
     private var lastSaveTime: Long = 0L
-    private var lastSaveLocation: Location? = null
     private val database by lazy { AppDatabase.getDatabase(this) }
 
 
@@ -166,7 +165,6 @@ class CruisingService : Service() {
             _cruisingData.value = _cruisingData.value.copy(sessionId = currentSessionId)
 
             lastSaveTime = 0L
-            lastSaveLocation = null
             lastSavedTotalDistance = -1f
             
             logicManager.reset()
@@ -250,10 +248,9 @@ class CruisingService : Service() {
         val lastCurrentSessionId = currentSessionId
         val lastCurrentSession = currentSession
 
-        lastSaveLocation = null
         lastSaveTime = 0L
         lastSavedTotalDistance = -1f
-        
+
         logicManager.reset()
 
         serviceScope.launch {
@@ -316,23 +313,21 @@ class CruisingService : Service() {
             distanceIncrement = distanceIncrement
         )
 
-        if (currentTime - lastSaveTime >= DISTANCE_TIME_INTERVAL_MS) {
-            if (lastSavedTotalDistance == -1f ||
-                result.totalDistanceMeters - lastSavedTotalDistance >= SAVE_DISTANCE_THRESHOLD_METERS ||
-                currentTime - lastSaveTime >= SAVE_TIME_FALLBACK_MS
-            ) {
-                writeLocationLog(
-                    currentTime,
-                    result.avgSpeed,
-                    result.maxSpeed,
-                    result.totalDistanceMeters,
-                    location
-                )
+        // 2m以上動いたらDBに記録する
+        if (lastSavedTotalDistance == -1f ||
+            result.totalDistanceMeters - lastSavedTotalDistance >= SAVE_DISTANCE_THRESHOLD_METERS ||
+            currentTime - lastSaveTime >= SAVE_TIME_FALLBACK_MS
+        ) {
+            writeLocationLog(
+                currentTime,
+                result.avgSpeed,
+                result.maxSpeed,
+                result.totalDistanceMeters,
+                location
+            )
 
-                lastSaveLocation = location
-                lastSaveTime = currentTime
-                lastSavedTotalDistance = result.totalDistanceMeters
-            }
+            lastSaveTime = currentTime
+            lastSavedTotalDistance = result.totalDistanceMeters
         }
 
         _cruisingData.value = _cruisingData.value.copy(
