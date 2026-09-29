@@ -32,6 +32,8 @@ class CruisingLogicManager(
     // Segment Analysis state
     private var segmentStartTime: Long = 0L
     private var segmentStartDistance: Float = 0f
+    private var segmentRollingSpeedSum: Double = 0.0
+    private var segmentRollingSpeedCount: Long = 0
     private val validSegments = mutableListOf<CruisingSegment>()
 
     // Speed LPF
@@ -42,10 +44,9 @@ class CruisingLogicManager(
         val durationMs: Long,
         val distanceMeters: Float,
         val startDistanceMeters: Float,
-        val endDistanceMeters: Float
-    ) {
-        val avgSpeed: Float get() = if (durationMs > 0) distanceMeters / (durationMs / 1000f) else 0f
-    }
+        val endDistanceMeters: Float,
+        val avgSpeed: Float
+    )
 
     data class LogicResult(
         val currentSpeed: Float,
@@ -100,23 +101,19 @@ class CruisingLogicManager(
         totalDistanceMeters += distanceIncrement
 
         // Rolling Speed Logic
-        rollingSamples.add(currentTime to currentSpeed)
         while (rollingSamples.isNotEmpty() && currentTime - rollingSamples.peekFirst()!!.first > rollingWindowMs) {
             rollingSamples.removeFirst()
         }
 
-        val validSpeeds = mutableListOf<Double>()
-        for (sample in rollingSamples) {
-            if (sample.second >= speedThresholdMps) {
-                validSpeeds.add(sample.second.toDouble())
-            }
+        if (currentSpeed >= speedThresholdMps) {
+            rollingSamples.add(currentTime to currentSpeed)
         }
 
-        val (rollingSpeed, isHeld) = if (validSpeeds.isNotEmpty()) {
-            validSpeeds.sortDescending()
+        val (rollingSpeed, isHeld) = if (rollingSamples.isNotEmpty()) {
+            val sortedSpeeds = rollingSamples.map { it.second.toDouble() }.sortedDescending()
             // Top N%
-            val countToTake = ceil(validSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
-            val avg = validSpeeds.take(countToTake).average().toFloat()
+            val countToTake = ceil(sortedSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
+            val avg = sortedSpeeds.take(countToTake).average().toFloat()
             lastValidRollingSpeed = avg
             avg to false
         } else {
@@ -128,7 +125,14 @@ class CruisingLogicManager(
             if (segmentStartTime == 0L) {
                 segmentStartTime = currentTime
                 segmentStartDistance = totalDistanceMeters - distanceIncrement // Start from before this increment
+                rollingSamples.clear()
+                rollingSamples.add(currentTime to currentSpeed)
+                segmentRollingSpeedSum = 0.0
+                segmentRollingSpeedCount = 0
             }
+
+            segmentRollingSpeedSum += rollingSpeed
+            segmentRollingSpeedCount++
         } else {
             finalizeCurrentSegment(currentTime)
         }
@@ -157,7 +161,7 @@ class CruisingLogicManager(
     }
 
     private fun calculateLiveCruisingMetrics(currentTime: Long): LiveMetrics {
-        var totalValidDistance = validSegments.sumOf { it.distanceMeters.toDouble() }.toFloat()
+        var totalWeightedSpeedSum = validSegments.sumOf { it.avgSpeed.toDouble() * it.durationMs }
         var totalValidDuration = validSegments.sumOf { it.durationMs.toDouble() }.toLong()
 
         val initialBest = validSegments.maxByOrNull { it.avgSpeed }
@@ -170,10 +174,13 @@ class CruisingLogicManager(
             val currentDuration = currentTime - segmentStartTime
             if (currentDuration >= minSegmentDurationMs) {
                 val currentDistance = totalDistanceMeters - segmentStartDistance
-                totalValidDistance += currentDistance
+                val currentAvgSpeed = if (segmentRollingSpeedCount > 0) {
+                    (segmentRollingSpeedSum / segmentRollingSpeedCount).toFloat()
+                } else 0f
+
+                totalWeightedSpeedSum += currentAvgSpeed.toDouble() * currentDuration
                 totalValidDuration += currentDuration
 
-                val currentAvgSpeed = currentDistance / (currentDuration / 1000f)
                 if (currentAvgSpeed > bestSegSpeed) {
                     bestSegSpeed = currentAvgSpeed
                     bestSegDist = currentDistance
@@ -184,7 +191,7 @@ class CruisingLogicManager(
         }
 
         val repCruisingSpeed = if (totalValidDuration > 0) {
-            totalValidDistance / (totalValidDuration / 1000f)
+            (totalWeightedSpeedSum / totalValidDuration).toFloat()
         } else 0f
 
         return LiveMetrics(
@@ -225,6 +232,8 @@ class CruisingLogicManager(
         lastValidRollingSpeed = 0f
         segmentStartTime = 0L
         segmentStartDistance = 0f
+        segmentRollingSpeedSum = 0.0
+        segmentRollingSpeedCount = 0
         validSegments.clear()
         lpfSpeed = 0f
         isFirstUpdate = true
@@ -238,17 +247,24 @@ class CruisingLogicManager(
             val duration = currentTime - segmentStartTime
             if (duration >= minSegmentDurationMs) {
                 val distance = totalDistanceMeters - segmentStartDistance
+                val segmentAvgSpeed = if (segmentRollingSpeedCount > 0) {
+                    (segmentRollingSpeedSum / segmentRollingSpeedCount).toFloat()
+                } else 0f
+
                 validSegments.add(
                     CruisingSegment(
                         durationMs = duration,
                         distanceMeters = distance,
                         startDistanceMeters = segmentStartDistance,
-                        endDistanceMeters = totalDistanceMeters
+                        endDistanceMeters = totalDistanceMeters,
+                        avgSpeed = segmentAvgSpeed
                     )
                 )
             }
             segmentStartTime = 0L
             segmentStartDistance = 0f
+            segmentRollingSpeedSum = 0.0
+            segmentRollingSpeedCount = 0
         }
     }
 

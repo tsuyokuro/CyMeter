@@ -85,7 +85,7 @@ fun DashboardContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(Dim.ContentPadding)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -124,12 +124,12 @@ fun DashboardContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dim.CardsTop))
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 160.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Dim.CardSpacingV),
+            horizontalArrangement = Arrangement.spacedBy(Dim.CardSpacingH),
             modifier = Modifier.weight(1f)
         ) {
             if (!cruisingData.isViewingHistory) {
@@ -304,8 +304,8 @@ fun StatCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -387,4 +387,11 @@ fun DashboardTabletPreview() {
             onExitHistory = {},
         )
     }
+}
+
+private object Dim {
+    val ContentPadding = 16.dp
+    val CardsTop = 16.dp
+    val CardSpacingH = 16.dp
+    val CardSpacingV = 16.dp
 }
