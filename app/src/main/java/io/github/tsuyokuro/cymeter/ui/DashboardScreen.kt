@@ -143,16 +143,12 @@ fun DashboardContent(
                     )
                 }
                 item {
-                    val heldTag = if (cruisingData.isRollingSpeedHeld) " " + stringResource(R.string.dashboard_rolling_held_tag) else ""
                     StatCard(
                         title = stringResource(R.string.dashboard_cruising_speed),
                         value = "%.1f".format(cruisingData.rollingCruisingSpeed * 3.6),
-                        unit = "km/h$heldTag",
+                        unit = "km/h",
                         icon = Icons.AutoMirrored.Rounded.DirectionsBike,
-                        color = if (cruisingData.isRollingSpeedHeld)
-                            MaterialTheme.colorScheme.outline
-                        else
-                            MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
