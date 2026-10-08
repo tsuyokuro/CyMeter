@@ -112,10 +112,9 @@ class CruisingLogicManager(
             // Top N%
             val countToTake = ceil(sortedSpeeds.size * rollingTopPercentage.toDouble()).toInt().coerceAtLeast(1)
             val avg = sortedSpeeds.take(countToTake).average().toFloat()
-            lastValidRollingSpeed = avg
             avg
         } else {
-            lastValidRollingSpeed
+            0f
         }
 
         // Segment Logic
@@ -129,8 +128,10 @@ class CruisingLogicManager(
                 segmentRollingSpeedCount = 0
             }
 
-            segmentRollingSpeedSum += rollingSpeed
-            segmentRollingSpeedCount++
+            if (rollingSpeed >= 0f) {
+                segmentRollingSpeedSum += rollingSpeed
+                segmentRollingSpeedCount++
+            }
         } else {
             finalizeCurrentSegment(currentTime)
         }
